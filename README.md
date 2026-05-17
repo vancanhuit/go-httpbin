@@ -71,16 +71,16 @@ Configuration follows 12-factor principles and is loaded from environment variab
 
 ## Implemented endpoint groups
 
-- Request echo: `/get`, `/post`, `/put`, `/patch`, `/delete`, `/anything`, `/anything/*`
+- Request echo: `/get`, `/post`, `/put`, `/patch`, `/delete`, `/anything`, `/anything/*`, including `TRACE` on `/anything`
 - Request inspection: `/headers`, `/ip`, `/user-agent`
-- Response behavior: `/status/{codes}`, `/response-headers`, `/cache`, `/cache/{seconds}`, `/etag/{etag}`
-- Auth: `/basic-auth/{user}/{password}`, `/hidden-basic-auth/{user}/{password}`, `/bearer`
+- Response behavior: `/status/{codes}`, `/response-headers`, `/cache`, `/cache/{seconds}`, `/etag/{etag}`, `/range/{numbytes}`
+- Auth: `/basic-auth/{user}/{password}`, `/hidden-basic-auth/{user}/{password}`, `/digest-auth/{qop}/{user}/{password}`, `/bearer`
 - Dynamic data: `/uuid`, `/bytes/{n}`, `/stream-bytes/{n}`, `/stream/{n}`, `/delay/{delay}`, `/drip`, `/base64/{value}`
 - Cookies and redirects: `/cookies`, `/cookies/set`, `/cookies/set/{name}/{value}`, `/cookies/delete`, `/redirect/{n}`, `/relative-redirect/{n}`, `/absolute-redirect/{n}`, `/redirect-to`
-- Formats and media: `/gzip`, `/deflate`, `/json`, `/xml`, `/html`, `/robots.txt`, `/deny`, `/encoding/utf8`, `/image`, `/image/png`, `/image/jpeg`, `/image/gif`, `/image/svg`, `/links/{n}/{offset}`
+- Formats and media: `/gzip`, `/deflate`, `/brotli`, `/json`, `/xml`, `/html`, `/robots.txt`, `/deny`, `/encoding/utf8`, `/image`, `/image/png`, `/image/jpeg`, `/image/gif`, `/image/svg`, `/image/webp`, `/links/{n}/{offset}`
 - Operations: `/healthz`, `/readyz`
 - API docs: `/openapi.yaml`, `/docs`
 
 ## Compatibility notes
 
-This project targets practical parity with `httpbin`, not byte-for-byte cloning. Digest auth and WebP image generation are intentionally deferred to keep the first version small, dependency-light, and Kubernetes-safe.
+This project targets practical parity with `httpbin`, not byte-for-byte cloning. WebP responses use a small embedded fixture image, and Digest auth uses stateless nonce validation for Kubernetes-safe test deployments.

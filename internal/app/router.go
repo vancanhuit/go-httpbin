@@ -5,8 +5,13 @@ import (
 	"compress/gzip"
 	"compress/zlib"
 	"context"
+	"crypto/md5"
 	"crypto/rand"
+	"crypto/sha256"
+	"crypto/sha512"
+	"crypto/subtle"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,6 +33,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/andybalholm/brotli"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	apispec "github.com/vancanhuit/go-httpbin/api"
@@ -376,6 +382,175 @@ func (s *server) bearer(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+const digestRealm = "go-httpbin"
+
+func (s *server) digestAuth(w http.ResponseWriter, r *http.Request, qop, user, password, algorithm, staleAfter string) {
+	algorithm = strings.ToUpper(strings.TrimSpace(algorithm))
+	if algorithm == "" {
+		algorithm = "MD5"
+	}
+	if !supportedDigestAlgorithm(algorithm) {
+		writeHTTPError(w, http.StatusBadRequest, "unsupported digest algorithm")
+		return
+	}
+	if qop != "auth" && qop != "auth-int" {
+		writeHTTPError(w, http.StatusBadRequest, "unsupported digest qop")
+		return
+	}
+
+	nonce := digestNonce(qop, user, password, algorithm, staleAfter)
+	opaque := digestOpaque(qop, user, algorithm)
+	challenge := digestChallengeHeader(qop, algorithm, nonce, opaque, false)
+	w.Header().Set("WWW-Authenticate", challenge)
+	http.SetCookie(w, &http.Cookie{Name: "stale_after", Value: staleAfter, Path: "/"})
+	http.SetCookie(w, &http.Cookie{Name: "fake", Value: "fake_value", Path: "/"})
+
+	params := parseDigestAuthorization(r.Header.Get("Authorization"))
+	if params == nil || !s.validDigestAuthorization(r, params, qop, user, password, algorithm, nonce, opaque) {
+		writeHTTPError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"authenticated": true,
+		"user":          user,
+	})
+}
+
+func (s *server) validDigestAuthorization(r *http.Request, params map[string]string, qop, user, password, algorithm, nonce, opaque string) bool {
+	if params["username"] != user ||
+		params["realm"] != digestRealm ||
+		params["nonce"] != nonce ||
+		params["opaque"] != opaque ||
+		params["qop"] != qop ||
+		params["uri"] != r.URL.RequestURI() ||
+		params["uri"] == "" ||
+		params["response"] == "" {
+		return false
+	}
+
+	ha1, ok := digestHex(algorithm, fmt.Sprintf("%s:%s:%s", user, digestRealm, password))
+	if !ok {
+		return false
+	}
+
+	ha2Input := r.Method + ":" + params["uri"]
+	if qop == "auth-int" {
+		body, err := io.ReadAll(io.LimitReader(r.Body, s.cfg.MaxBodyBytes+1))
+		if err != nil {
+			return false
+		}
+		if int64(len(body)) > s.cfg.MaxBodyBytes {
+			return false
+		}
+		bodyHash, ok := digestHex(algorithm, string(body))
+		if !ok {
+			return false
+		}
+		ha2Input += ":" + bodyHash
+	}
+	ha2, ok := digestHex(algorithm, ha2Input)
+	if !ok {
+		return false
+	}
+
+	expected, ok := digestHex(algorithm, fmt.Sprintf("%s:%s:%s:%s:%s:%s", ha1, nonce, params["nc"], params["cnonce"], qop, ha2))
+	if !ok {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(expected), []byte(params["response"])) == 1
+}
+
+func supportedDigestAlgorithm(algorithm string) bool {
+	switch algorithm {
+	case "MD5", "SHA-256", "SHA-512":
+		return true
+	default:
+		return false
+	}
+}
+
+func digestChallengeHeader(qop, algorithm, nonce, opaque string, stale bool) string {
+	staleValue := "FALSE"
+	if stale {
+		staleValue = "TRUE"
+	}
+	return fmt.Sprintf(
+		`Digest realm="%s", nonce="%s", qop="%s", opaque="%s", algorithm=%s, stale=%s`,
+		digestRealm,
+		nonce,
+		qop,
+		opaque,
+		algorithm,
+		staleValue,
+	)
+}
+
+func digestNonce(qop, user, password, algorithm, staleAfter string) string {
+	sum := sha256.Sum256([]byte(qop + ":" + user + ":" + password + ":" + algorithm + ":" + staleAfter))
+	return hex.EncodeToString(sum[:16])
+}
+
+func digestOpaque(qop, user, algorithm string) string {
+	sum := sha256.Sum256([]byte("opaque:" + qop + ":" + user + ":" + algorithm))
+	return hex.EncodeToString(sum[:16])
+}
+
+func digestHex(algorithm, value string) (string, bool) {
+	switch algorithm {
+	case "MD5":
+		sum := md5.Sum([]byte(value))
+		return hex.EncodeToString(sum[:]), true
+	case "SHA-256":
+		sum := sha256.Sum256([]byte(value))
+		return hex.EncodeToString(sum[:]), true
+	case "SHA-512":
+		sum := sha512.Sum512([]byte(value))
+		return hex.EncodeToString(sum[:]), true
+	default:
+		return "", false
+	}
+}
+
+func parseDigestAuthorization(header string) map[string]string {
+	value, ok := strings.CutPrefix(header, "Digest ")
+	if !ok {
+		return nil
+	}
+	params := map[string]string{}
+	for _, part := range splitDigestAuthParams(value) {
+		key, val, ok := strings.Cut(strings.TrimSpace(part), "=")
+		if !ok {
+			continue
+		}
+		params[key] = strings.Trim(strings.TrimSpace(val), `"`)
+	}
+	return params
+}
+
+func splitDigestAuthParams(value string) []string {
+	var parts []string
+	var b strings.Builder
+	inQuotes := false
+	for _, r := range value {
+		switch r {
+		case '"':
+			inQuotes = !inQuotes
+		case ',':
+			if !inQuotes {
+				parts = append(parts, b.String())
+				b.Reset()
+				continue
+			}
+		}
+		b.WriteRune(r)
+	}
+	if b.Len() > 0 {
+		parts = append(parts, b.String())
+	}
+	return parts
+}
+
 func (s *server) uuid(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"uuid": newUUID()})
 }
@@ -434,6 +609,88 @@ func (s *server) stream(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *server) rangeBytes(w http.ResponseWriter, r *http.Request) {
+	n, err := strconv.Atoi(chi.URLParam(r, "numbytes"))
+	if err != nil || n < 1 {
+		writeHTTPError(w, http.StatusBadRequest, "invalid numbytes")
+		return
+	}
+	if n > s.cfg.MaxRandomBytes {
+		writeHTTPError(w, http.StatusBadRequest, "numbytes exceeds configured maximum")
+		return
+	}
+
+	start, end, ok := 0, n-1, true
+	status := http.StatusOK
+	if header := r.Header.Get("Range"); header != "" {
+		start, end, ok = parseRange(header, n)
+		status = http.StatusPartialContent
+	}
+
+	w.Header().Set("Accept-Ranges", "bytes")
+	w.Header().Set("ETag", "range"+strconv.Itoa(n))
+	if !ok {
+		w.Header().Set("Content-Range", fmt.Sprintf("bytes */%d", n))
+		writeHTTPError(w, http.StatusRequestedRangeNotSatisfiable, "range not satisfiable")
+		return
+	}
+
+	body := alphabetBytes(n)
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Length", strconv.Itoa(end-start+1))
+	w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, n))
+	w.WriteHeader(status)
+	_, _ = w.Write(body[start : end+1])
+}
+
+func parseRange(header string, size int) (int, int, bool) {
+	const prefix = "bytes="
+	if !strings.HasPrefix(header, prefix) {
+		return 0, 0, false
+	}
+	spec := strings.TrimSpace(strings.TrimPrefix(header, prefix))
+	if spec == "" || strings.Contains(spec, ",") {
+		return 0, 0, false
+	}
+	startText, endText, ok := strings.Cut(spec, "-")
+	if !ok {
+		return 0, 0, false
+	}
+
+	if startText == "" {
+		suffix, err := strconv.Atoi(endText)
+		if err != nil || suffix <= 0 {
+			return 0, 0, false
+		}
+		if suffix > size {
+			suffix = size
+		}
+		return size - suffix, size - 1, true
+	}
+
+	start, err := strconv.Atoi(startText)
+	if err != nil || start < 0 || start >= size {
+		return 0, 0, false
+	}
+	if endText == "" {
+		return start, size - 1, true
+	}
+	end, err := strconv.Atoi(endText)
+	if err != nil || end < start || end >= size {
+		return 0, 0, false
+	}
+	return start, end, true
+}
+
+func alphabetBytes(n int) []byte {
+	const alphabet = "abcdefghijklmnopqrstuvwxyz"
+	body := make([]byte, n)
+	for i := range n {
+		body[i] = alphabet[i%len(alphabet)]
+	}
+	return body
+}
+
 func (s *server) delay(w http.ResponseWriter, r *http.Request) {
 	seconds, err := strconv.ParseFloat(chi.URLParam(r, "delay"), 64)
 	if err != nil || seconds < 0 {
@@ -448,7 +705,7 @@ func (s *server) delay(w http.ResponseWriter, r *http.Request) {
 	if !sleepContext(r.Context(), delay) {
 		return
 	}
-	s.writeEcho(w, r, false, false)
+	s.writeEcho(w, r, r.Method != http.MethodGet, false)
 }
 
 func (s *server) drip(w http.ResponseWriter, r *http.Request) {
@@ -636,6 +893,22 @@ func (s *server) deflate(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(zw).Encode(encodedResponse(false, r, s.origin(r)))
 }
 
+func (s *server) brotli(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Encoding", "br")
+	w.WriteHeader(http.StatusOK)
+	bw := brotli.NewWriter(w)
+	defer func() {
+		_ = bw.Close()
+	}()
+	_ = json.NewEncoder(bw).Encode(map[string]any{
+		"brotli":  true,
+		"headers": requestHeaders(r),
+		"method":  r.Method,
+		"origin":  s.origin(r),
+	})
+}
+
 func encodedResponse(gzipped bool, r *http.Request, origin string) map[string]any {
 	return map[string]any{
 		"gzipped":  gzipped,
@@ -687,6 +960,8 @@ func (s *server) utf8(w http.ResponseWriter, r *http.Request) {
 func (s *server) image(w http.ResponseWriter, r *http.Request) {
 	accept := r.Header.Get("Accept")
 	switch {
+	case strings.Contains(accept, "image/webp"):
+		s.webpImage(w, r)
 	case strings.Contains(accept, "image/svg+xml"):
 		s.svgImage(w, r)
 	case strings.Contains(accept, "image/jpeg"):
@@ -716,6 +991,21 @@ func (s *server) gifImage(w http.ResponseWriter, r *http.Request) {
 func (s *server) svgImage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "image/svg+xml")
 	_, _ = w.Write([]byte(`<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128"><rect width="128" height="128" fill="#f5f5f5"/><circle cx="64" cy="64" r="42" fill="#2b7fff"/><text x="64" y="72" text-anchor="middle" font-size="20" font-family="sans-serif" fill="white">Go</text></svg>`))
+}
+
+func (s *server) webpImage(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "image/webp")
+	_, _ = w.Write(webpImageBytes)
+}
+
+var webpImageBytes = mustDecodeBase64("UklGRkAAAABXRUJQVlA4IDQAAADwAQCdASoBAAEAAQAcJaACdLoB+AAETAAA/vW4f/6aR40jxpHxcP/ugT90CfugT/3NoAAA")
+
+func mustDecodeBase64(value string) []byte {
+	b, err := base64.StdEncoding.DecodeString(value)
+	if err != nil {
+		panic(err)
+	}
+	return b
 }
 
 func testImage() image.Image {

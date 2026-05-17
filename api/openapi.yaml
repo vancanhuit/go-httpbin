@@ -120,6 +120,17 @@ paths:
       responses:
         "200":
           description: Request echo.
+    trace:
+      operationId: AnythingTrace
+      requestBody:
+        content:
+          "*/*":
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Request echo.
     patch:
       operationId: AnythingPatch
       requestBody:
@@ -157,6 +168,17 @@ paths:
           description: Request echo.
     put:
       operationId: AnythingPathPut
+      requestBody:
+        content:
+          "*/*":
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Request echo.
+    trace:
+      operationId: AnythingPathTrace
       requestBody:
         content:
           "*/*":
@@ -218,8 +240,18 @@ paths:
       responses:
         default:
           description: Requested status.
+    patch:
+      operationId: StatusPatch
+      responses:
+        default:
+          description: Requested status.
     delete:
       operationId: StatusDelete
+      responses:
+        default:
+          description: Requested status.
+    trace:
+      operationId: StatusTrace
       responses:
         default:
           description: Requested status.
@@ -280,6 +312,45 @@ paths:
           description: Authenticated.
         "404":
           description: Hidden unauthorized response.
+  /digest-auth/{qop}/{user}/{password}:
+    parameters:
+      - $ref: "#/components/parameters/QOP"
+      - $ref: "#/components/parameters/User"
+      - $ref: "#/components/parameters/Password"
+    get:
+      operationId: DigestAuth
+      responses:
+        "200":
+          description: Authenticated.
+        "401":
+          description: Unauthorized.
+  /digest-auth/{qop}/{user}/{password}/{algorithm}:
+    parameters:
+      - $ref: "#/components/parameters/QOP"
+      - $ref: "#/components/parameters/User"
+      - $ref: "#/components/parameters/Password"
+      - $ref: "#/components/parameters/Algorithm"
+    get:
+      operationId: DigestAuthAlgorithm
+      responses:
+        "200":
+          description: Authenticated.
+        "401":
+          description: Unauthorized.
+  /digest-auth/{qop}/{user}/{password}/{algorithm}/{stale_after}:
+    parameters:
+      - $ref: "#/components/parameters/QOP"
+      - $ref: "#/components/parameters/User"
+      - $ref: "#/components/parameters/Password"
+      - $ref: "#/components/parameters/Algorithm"
+      - $ref: "#/components/parameters/StaleAfter"
+    get:
+      operationId: DigestAuthAlgorithmStale
+      responses:
+        "200":
+          description: Authenticated.
+        "401":
+          description: Unauthorized.
   /bearer:
     get:
       operationId: Bearer
@@ -318,11 +389,78 @@ paths:
       responses:
         "200":
           description: JSON stream.
+  /range/{numbytes}:
+    parameters:
+      - $ref: "#/components/parameters/NumBytes"
+    get:
+      operationId: Range
+      responses:
+        "200":
+          description: Byte range response.
+        "206":
+          description: Partial byte range response.
+        "416":
+          description: Unsatisfiable byte range.
   /delay/{delay}:
     parameters:
       - $ref: "#/components/parameters/Delay"
     get:
       operationId: Delay
+      responses:
+        "200":
+          description: Delayed echo.
+    post:
+      operationId: DelayPost
+      requestBody:
+        content:
+          "*/*":
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Delayed echo.
+    put:
+      operationId: DelayPut
+      requestBody:
+        content:
+          "*/*":
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Delayed echo.
+    patch:
+      operationId: DelayPatch
+      requestBody:
+        content:
+          "*/*":
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Delayed echo.
+    delete:
+      operationId: DelayDelete
+      requestBody:
+        content:
+          "*/*":
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Delayed echo.
+    trace:
+      operationId: DelayTrace
+      requestBody:
+        content:
+          "*/*":
+            schema:
+              type: string
+              format: binary
       responses:
         "200":
           description: Delayed echo.
@@ -397,6 +535,31 @@ paths:
       responses:
         "302":
           description: Redirect to query URL.
+    post:
+      operationId: RedirectToPost
+      responses:
+        "302":
+          description: Redirect to query URL.
+    put:
+      operationId: RedirectToPut
+      responses:
+        "302":
+          description: Redirect to query URL.
+    patch:
+      operationId: RedirectToPatch
+      responses:
+        "302":
+          description: Redirect to query URL.
+    delete:
+      operationId: RedirectToDelete
+      responses:
+        "302":
+          description: Redirect to query URL.
+    trace:
+      operationId: RedirectToTrace
+      responses:
+        "302":
+          description: Redirect to query URL.
   /gzip:
     get:
       operationId: Gzip
@@ -409,6 +572,12 @@ paths:
       responses:
         "200":
           description: Deflated JSON.
+  /brotli:
+    get:
+      operationId: Brotli
+      responses:
+        "200":
+          description: Brotli-compressed JSON.
   /json:
     get:
       operationId: JSON
@@ -475,6 +644,12 @@ paths:
       responses:
         "200":
           description: SVG image.
+  /image/webp:
+    get:
+      operationId: ImageWEBP
+      responses:
+        "200":
+          description: WebP image.
   /links/{n}/{offset}:
     parameters:
       - $ref: "#/components/parameters/N"
@@ -486,6 +661,12 @@ paths:
           description: HTML links.
 components:
   parameters:
+    Algorithm:
+      name: algorithm
+      in: path
+      required: true
+      schema:
+        type: string
     Codes:
       name: codes
       in: path
@@ -506,6 +687,12 @@ components:
         type: string
     N:
       name: n
+      in: path
+      required: true
+      schema:
+        type: integer
+    NumBytes:
+      name: numbytes
       in: path
       required: true
       schema:
@@ -534,12 +721,24 @@ components:
       required: true
       schema:
         type: string
+    QOP:
+      name: qop
+      in: path
+      required: true
+      schema:
+        type: string
     Seconds:
       name: seconds
       in: path
       required: true
       schema:
         type: integer
+    StaleAfter:
+      name: stale_after
+      in: path
+      required: true
+      schema:
+        type: string
     User:
       name: user
       in: path
