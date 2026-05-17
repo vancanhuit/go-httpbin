@@ -24,6 +24,26 @@ paths:
       responses:
         "200":
           description: Readiness check.
+  /openapi.yaml:
+    get:
+      operationId: OpenAPIYAML
+      responses:
+        "200":
+          description: OpenAPI document.
+          content:
+            application/yaml:
+              schema:
+                type: string
+  /docs:
+    get:
+      operationId: Docs
+      responses:
+        "200":
+          description: Swagger UI documentation.
+          content:
+            text/html:
+              schema:
+                type: string
   /get:
     get:
       operationId: GetEcho

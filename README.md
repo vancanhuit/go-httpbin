@@ -35,6 +35,7 @@ go run ./cmd/server
 ```
 
 The default address is `:8080`.
+Swagger UI is available at `http://localhost:8080/docs`. The OpenAPI document is served at `http://localhost:8080/openapi.yaml`.
 
 ## OpenAPI code generation
 
@@ -75,6 +76,7 @@ Configuration follows 12-factor principles and is loaded from environment variab
 - Cookies and redirects: `/cookies`, `/cookies/set`, `/cookies/set/{name}/{value}`, `/cookies/delete`, `/redirect/{n}`, `/relative-redirect/{n}`, `/absolute-redirect/{n}`, `/redirect-to`
 - Formats and media: `/gzip`, `/deflate`, `/json`, `/xml`, `/html`, `/robots.txt`, `/deny`, `/encoding/utf8`, `/image`, `/image/png`, `/image/jpeg`, `/image/gif`, `/image/svg`, `/links/{n}/{offset}`
 - Operations: `/healthz`, `/readyz`
+- API docs: `/openapi.yaml`, `/docs`
 
 ## Compatibility notes
 

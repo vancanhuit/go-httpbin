@@ -45,6 +45,36 @@ func TestHealthEndpoints(t *testing.T) {
 	}
 }
 
+func TestOpenAPIDocs(t *testing.T) {
+	t.Run("spec", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/openapi.yaml", nil, nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+		if got := rec.Header().Get("Content-Type"); got != "application/yaml; charset=utf-8" {
+			t.Fatalf("Content-Type = %q, want application/yaml", got)
+		}
+		body := rec.Body.String()
+		if !strings.Contains(body, "openapi: 3.0.3") || !strings.Contains(body, "/docs:") {
+			t.Fatalf("unexpected OpenAPI body: %q", body)
+		}
+	})
+
+	t.Run("swagger ui", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/docs", nil, nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+		if got := rec.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
+			t.Fatalf("Content-Type = %q, want text/html", got)
+		}
+		body := rec.Body.String()
+		if !strings.Contains(body, "SwaggerUIBundle") || !strings.Contains(body, `url: "/openapi.yaml"`) {
+			t.Fatalf("unexpected docs body: %q", body)
+		}
+	})
+}
+
 func TestGetEcho(t *testing.T) {
 	rec := request(t, http.MethodGet, "/get?name=go&name=chi", nil, map[string]string{
 		"User-Agent":        "go-test",

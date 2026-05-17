@@ -14,6 +14,12 @@ func (s *server) Healthz(w http.ResponseWriter, r *http.Request) { s.health(w, r
 
 func (s *server) Readyz(w http.ResponseWriter, r *http.Request) { s.health(w, r) }
 
+func (s *server) OpenAPIYAML(w http.ResponseWriter, r *http.Request) {
+	s.openAPIYAML(w, r)
+}
+
+func (s *server) Docs(w http.ResponseWriter, r *http.Request) { s.docs(w, r) }
+
 func (s *server) GetEcho(w http.ResponseWriter, r *http.Request) {
 	s.writeEcho(w, r, false, false)
 }
