@@ -21,6 +21,7 @@ import (
 	"github.com/andybalholm/brotli"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/vancanhuit/go-httpbin/internal/config"
+	buildinfo "github.com/vancanhuit/go-httpbin/internal/version"
 )
 
 func testRouter() http.Handler {
@@ -54,6 +55,25 @@ func TestHealthEndpoints(t *testing.T) {
 		if body["status"] != "ok" {
 			t.Fatalf("%s status body = %#v, want ok", path, body)
 		}
+	}
+}
+
+func TestVersionEndpoint(t *testing.T) {
+	oldVersion := buildinfo.Version
+	buildinfo.Version = "v9.8.7-test"
+	t.Cleanup(func() {
+		buildinfo.Version = oldVersion
+	})
+
+	rec := request(t, http.MethodGet, "/version", nil, nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+
+	var body map[string]string
+	decodeJSON(t, rec, &body)
+	if body["version"] != "v9.8.7-test" {
+		t.Fatalf("version = %q, want injected version", body["version"])
 	}
 }
 

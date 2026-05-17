@@ -48,22 +48,46 @@ docker build -t go-httpbin:dev .
 docker run --rm -p 8080:8080 go-httpbin:dev
 ```
 
+Inject a build version into `/version`:
+
+```sh
+docker build --build-arg VERSION=dev-local -t go-httpbin:dev .
+curl http://127.0.0.1:8080/version
+```
+
 Build a multi-platform image archive:
 
 ```sh
 docker buildx build --platform linux/amd64,linux/arm64 -t go-httpbin:dev --output=type=oci,dest=/tmp/go-httpbin-image.tar .
 ```
 
-Pull request builds archive the OCI tarball as the `go-httpbin-oci-image` workflow artifact.
+Pull request builds inject `pr-<number>-<short-sha>` into `/version` and archive the OCI tarball as the `go-httpbin-oci-image` workflow artifact.
 
 Pushes to `main` publish multi-platform images to GHCR as:
 
 ```text
 ghcr.io/vancanhuit/go-httpbin:latest
+ghcr.io/vancanhuit/go-httpbin:main
 ghcr.io/vancanhuit/go-httpbin:<git-sha>
+ghcr.io/vancanhuit/go-httpbin:main-<short-sha>
 ```
 
+Main branch images inject `main-<short-sha>` into `/version`.
+
 The build stage uses the Go Debian trixie image. The runtime image uses the Debian 13 distroless nonroot base, and keeps configuration in environment variables.
+
+## Release
+
+Push a SemVer tag to create a GitHub Release with `git-cliff` release notes and publish a multi-platform GHCR image:
+
+```sh
+git tag -a v0.1.0 -m v0.1.0
+git push origin v0.1.0
+```
+
+Release images are tagged with the pushed tag, the SemVer version without the `v` prefix, and the git SHA. Stable releases also update `latest`, `v<major>`, and `v<major>.<minor>`. The pushed tag is injected into release binaries and images and is available from `/version`.
+
+Each release also attaches `linux/amd64`, `linux/arm64`, `darwin/amd64`, `darwin/arm64`, `windows/amd64`, and `windows/arm64` binary archives with per-archive SHA-256 files plus a combined `checksums.txt`.
 
 ## Kubernetes
 
@@ -74,6 +98,7 @@ kubectl apply -f deploy/kubernetes/go-httpbin.yaml
 kubectl -n go-httpbin rollout status deployment/go-httpbin
 kubectl -n go-httpbin port-forward service/go-httpbin 8080:80
 curl http://127.0.0.1:8080/healthz
+curl http://127.0.0.1:8080/version
 ```
 
 The manifest deploys `ghcr.io/vancanhuit/go-httpbin:latest` with readiness and liveness probes, a `ClusterIP` service, non-root security settings, and environment-based configuration. Pull request CI verifies it in a kind cluster.
@@ -120,7 +145,7 @@ Configuration follows 12-factor principles and is loaded from environment variab
 - Dynamic data: `/uuid`, `/bytes/{n}`, `/stream-bytes/{n}`, `/stream/{n}`, `/delay/{delay}`, `/drip`, `/base64/{value}`
 - Cookies and redirects: `/cookies`, `/cookies/set`, `/cookies/set/{name}/{value}`, `/cookies/delete`, `/redirect/{n}`, `/relative-redirect/{n}`, `/absolute-redirect/{n}`, `/redirect-to`
 - Formats and media: `/gzip`, `/deflate`, `/brotli`, `/json`, `/xml`, `/html`, `/robots.txt`, `/deny`, `/encoding/utf8`, `/image`, `/image/png`, `/image/jpeg`, `/image/gif`, `/image/svg`, `/image/webp`, `/links/{n}/{offset}`
-- Operations: `/healthz`, `/readyz`
+- Operations: `/healthz`, `/readyz`, `/version`
 - API docs: `/openapi.yaml`, `/docs`
 
 ## Compatibility notes

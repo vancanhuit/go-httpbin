@@ -24,6 +24,21 @@ paths:
       responses:
         "200":
           description: Readiness check.
+  /version:
+    get:
+      operationId: Version
+      responses:
+        "200":
+          description: Build version.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - version
+                properties:
+                  version:
+                    type: string
   /openapi.yaml:
     get:
       operationId: OpenAPIYAML

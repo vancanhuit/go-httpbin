@@ -5,6 +5,7 @@ cluster_name="${KIND_CLUSTER_NAME:-go-httpbin-ci}"
 manifest="${KUBE_MANIFEST:-deploy/kubernetes/go-httpbin.yaml}"
 namespace="${KUBE_NAMESPACE:-go-httpbin}"
 image="${KIND_IMAGE:-ghcr.io/vancanhuit/go-httpbin:latest}"
+version="${KIND_IMAGE_VERSION:-${VERSION:-dev}}"
 local_port="${KUBE_LOCAL_PORT:-18080}"
 create_cluster="${KIND_CREATE_CLUSTER:-true}"
 port_forward_log="${RUNNER_TEMP:-/tmp}/go-httpbin-port-forward.log"
@@ -30,7 +31,7 @@ for command in docker kind kubectl curl; do
   fi
 done
 
-docker build --tag "${image}" .
+docker build --build-arg "VERSION=${version}" --tag "${image}" .
 
 if [[ "${create_cluster}" == "true" ]]; then
   kind create cluster --name "${cluster_name}" --wait 120s
@@ -46,6 +47,7 @@ kubectl -n "${namespace}" wait --for=condition=ready pod -l app.kubernetes.io/na
 kubectl -n "${namespace}" port-forward --address 127.0.0.1 service/go-httpbin "${local_port}:80" >"${port_forward_log}" 2>&1 &
 port_forward_pid="$!"
 
+version_response=""
 for _ in $(seq 1 30); do
   if ! kill -0 "${port_forward_pid}" 2>/dev/null; then
     echo "kubectl port-forward exited before go-httpbin became reachable" >&2
@@ -55,14 +57,21 @@ for _ in $(seq 1 30); do
 
   health_response="$(curl --fail --silent "http://127.0.0.1:${local_port}/healthz" 2>/dev/null || true)"
   if [[ "${health_response}" == *'"status":"ok"'* ]]; then
-    curl --fail --silent --show-error "http://127.0.0.1:${local_port}/get" >/dev/null
-    exit 0
+    version_response="$(curl --fail --silent "http://127.0.0.1:${local_port}/version" 2>/dev/null || true)"
+    if [[ "${version_response}" == *"\"version\":\"${version}\""* ]]; then
+      curl --fail --silent --show-error "http://127.0.0.1:${local_port}/get" >/dev/null
+      exit 0
+    fi
   fi
 
   sleep 2
 done
 
 echo "timed out waiting for go-httpbin through kubectl port-forward on 127.0.0.1:${local_port}" >&2
+if [[ -n "${version_response}" ]]; then
+  echo "last /version response: ${version_response}" >&2
+  echo "wanted version: ${version}" >&2
+fi
 kubectl -n "${namespace}" get all
 kubectl -n "${namespace}" describe deployment/go-httpbin
 kubectl -n "${namespace}" logs deployment/go-httpbin --tail=100 || true

@@ -39,6 +39,7 @@ import (
 	apispec "github.com/vancanhuit/go-httpbin/api"
 	"github.com/vancanhuit/go-httpbin/internal/api"
 	"github.com/vancanhuit/go-httpbin/internal/config"
+	buildinfo "github.com/vancanhuit/go-httpbin/internal/version"
 )
 
 type server struct {
@@ -90,6 +91,10 @@ func (s *server) index(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) health(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (s *server) version(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]string{"version": buildinfo.Version})
 }
 
 func (s *server) openAPIYAML(w http.ResponseWriter, r *http.Request) {

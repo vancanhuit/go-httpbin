@@ -308,6 +308,9 @@ type ServerInterface interface {
 	// (GET /uuid)
 	UUID(w http.ResponseWriter, r *http.Request)
 
+	// (GET /version)
+	Version(w http.ResponseWriter, r *http.Request)
+
 	// (GET /xml)
 	XML(w http.ResponseWriter, r *http.Request)
 }
@@ -728,6 +731,11 @@ func (_ Unimplemented) UserAgent(w http.ResponseWriter, r *http.Request) {
 
 // (GET /uuid)
 func (_ Unimplemented) UUID(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /version)
+func (_ Unimplemented) Version(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -2444,6 +2452,20 @@ func (siw *ServerInterfaceWrapper) UUID(w http.ResponseWriter, r *http.Request) 
 	handler.ServeHTTP(w, r)
 }
 
+// Version operation middleware
+func (siw *ServerInterfaceWrapper) Version(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Version(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // XML operation middleware
 func (siw *ServerInterfaceWrapper) XML(w http.ResponseWriter, r *http.Request) {
 
@@ -2819,6 +2841,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/uuid", wrapper.UUID)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/version", wrapper.Version)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/xml", wrapper.XML)

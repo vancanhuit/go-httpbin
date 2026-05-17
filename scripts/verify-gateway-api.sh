@@ -6,6 +6,7 @@ app_manifest="${KUBE_MANIFEST:-deploy/kubernetes/go-httpbin.yaml}"
 gateway_manifest="${GATEWAY_MANIFEST:-deploy/kubernetes/gateway.yaml}"
 namespace="${KUBE_NAMESPACE:-go-httpbin}"
 image="${KIND_IMAGE:-ghcr.io/vancanhuit/go-httpbin:latest}"
+version="${KIND_IMAGE_VERSION:-${VERSION:-dev}}"
 hostname="${GATEWAY_HOSTNAME:-go-httpbin.local}"
 create_cluster="${KIND_CREATE_CLUSTER:-true}"
 provider_log="${RUNNER_TEMP:-/tmp}/cloud-provider-kind.log"
@@ -31,7 +32,7 @@ for command in cloud-provider-kind docker kind kubectl curl; do
   fi
 done
 
-docker build --tag "${image}" .
+docker build --build-arg "VERSION=${version}" --tag "${image}" .
 
 if [[ "${create_cluster}" == "true" ]]; then
   kind create cluster --name "${cluster_name}" --wait 120s
@@ -113,17 +114,25 @@ if [[ -z "${gateway_address}" ]]; then
   exit 1
 fi
 
+version_response=""
 for _ in $(seq 1 30); do
   health_response="$(curl --fail --silent --header "Host: ${hostname}" "http://${gateway_address}/healthz" 2>/dev/null || true)"
   if [[ "${health_response}" == *'"status":"ok"'* ]]; then
-    curl --fail --silent --show-error --header "Host: ${hostname}" "http://${gateway_address}/get" >/dev/null
-    exit 0
+    version_response="$(curl --fail --silent --header "Host: ${hostname}" "http://${gateway_address}/version" 2>/dev/null || true)"
+    if [[ "${version_response}" == *"\"version\":\"${version}\""* ]]; then
+      curl --fail --silent --show-error --header "Host: ${hostname}" "http://${gateway_address}/get" >/dev/null
+      exit 0
+    fi
   fi
 
   sleep 2
 done
 
 echo "timed out waiting for go-httpbin through Gateway API at ${gateway_address}" >&2
+if [[ -n "${version_response}" ]]; then
+  echo "last /version response: ${version_response}" >&2
+  echo "wanted version: ${version}" >&2
+fi
 kubectl -n "${namespace}" get gateway,httproute
 kubectl -n "${namespace}" describe gateway/go-httpbin
 kubectl -n "${namespace}" describe httproute/go-httpbin
