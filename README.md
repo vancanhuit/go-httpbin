@@ -1,5 +1,8 @@
 # go-httpbin
 
+[![CI](https://github.com/vancanhuit/go-httpbin/actions/workflows/ci.yml/badge.svg)](https://github.com/vancanhuit/go-httpbin/actions/workflows/ci.yml)
+[![Release](https://github.com/vancanhuit/go-httpbin/actions/workflows/release.yml/badge.svg)](https://github.com/vancanhuit/go-httpbin/actions/workflows/release.yml)
+
 `go-httpbin` is a Go + Chi port of common `httpbin` behavior for testing HTTP clients, proxies, service meshes, and Kubernetes workloads.
 
 The module path is:
@@ -7,6 +10,25 @@ The module path is:
 ```text
 github.com/vancanhuit/go-httpbin
 ```
+
+## Quick start
+
+Run the latest GHCR image:
+
+```sh
+docker run --rm -d --name go-httpbin -p 8080:8080 ghcr.io/vancanhuit/go-httpbin:latest
+```
+
+Verify the service:
+
+```sh
+curl http://127.0.0.1:8080/healthz
+curl http://127.0.0.1:8080/version
+curl http://127.0.0.1:8080/get
+docker stop go-httpbin
+```
+
+Swagger UI is available at `http://127.0.0.1:8080/docs`, and the OpenAPI document is served at `http://127.0.0.1:8080/openapi.yaml`.
 
 ## Development
 
@@ -35,6 +57,12 @@ Run the server locally:
 go run ./cmd/server
 ```
 
+Run with a local version value injected into `/version`:
+
+```sh
+go run -ldflags="-X github.com/vancanhuit/go-httpbin/internal/version.Version=dev-local" ./cmd/server
+```
+
 The default address is `:8080`.
 Swagger UI is available at `http://localhost:8080/docs`. The OpenAPI document is served at `http://localhost:8080/openapi.yaml`.
 Application logs are written to stdout as structured JSON with `log/slog`.
@@ -52,7 +80,9 @@ Inject a build version into `/version`:
 
 ```sh
 docker build --build-arg VERSION=dev-local -t go-httpbin:dev .
+docker run --rm -d --name go-httpbin-dev -p 8080:8080 go-httpbin:dev
 curl http://127.0.0.1:8080/version
+docker stop go-httpbin-dev
 ```
 
 Build a multi-platform image archive:
@@ -89,6 +119,29 @@ Release images are tagged with the pushed tag, the SemVer version without the `v
 
 Each release also attaches `linux/amd64`, `linux/arm64`, `darwin/amd64`, `darwin/arm64`, `windows/amd64`, and `windows/arm64` binary archives with per-archive SHA-256 files plus a combined `checksums.txt`.
 
+Download and verify a release binary:
+
+```sh
+version=v0.0.0
+platform=linux_amd64
+
+gh release download "${version}" \
+  --repo vancanhuit/go-httpbin \
+  --pattern "go-httpbin_${version#v}_${platform}.tar.gz" \
+  --pattern checksums.txt
+
+sha256sum --check checksums.txt --ignore-missing
+tar -xzf "go-httpbin_${version#v}_${platform}.tar.gz"
+./go-httpbin
+```
+
+The release image for the same tag is available as:
+
+```text
+ghcr.io/vancanhuit/go-httpbin:v0.0.0
+ghcr.io/vancanhuit/go-httpbin:0.0.0
+```
+
 ## Kubernetes
 
 Apply the sample manifest:
@@ -104,6 +157,12 @@ curl http://127.0.0.1:8080/version
 The manifest deploys `ghcr.io/vancanhuit/go-httpbin:latest` with readiness and liveness probes, a `ClusterIP` service, non-root security settings, and environment-based configuration. Pull request CI verifies it in a kind cluster.
 
 Gateway API resources for kind are available in `deploy/kubernetes/gateway.yaml`. They target the `cloud-provider-kind` GatewayClass and route `go-httpbin.local` to the `go-httpbin` service.
+
+## CI/CD
+
+Pull request CI validates the PR title, regenerates OpenAPI code, checks the generated diff, runs `golangci-lint`, runs `go test -v -cover -race ./...`, verifies the Kubernetes manifest in kind, verifies the Gateway API route with `cloud-provider-kind`, and archives a multi-platform OCI image tarball.
+
+Pushes to `main` publish multi-platform GHCR images. SemVer tags matching `v*.*.*` run the release workflow, generate release notes with `git-cliff`, build platform binary archives with SHA-256 checksums, publish the release image, and create the GitHub Release.
 
 ## OpenAPI code generation
 
