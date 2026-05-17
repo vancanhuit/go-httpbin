@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -22,6 +23,8 @@ type Config struct {
 	MaxRandomBytes    int
 	TrustProxyHeaders bool
 	EnableCompression bool
+	LogLevel          slog.Level
+	LogAddSource      bool
 }
 
 type rawConfig struct {
@@ -37,6 +40,8 @@ type rawConfig struct {
 	MaxRandomBytes    int    `env:"MAX_RANDOM_BYTES" envDefault:"1048576"`
 	TrustProxyHeaders bool   `env:"TRUST_PROXY_HEADERS" envDefault:"false"`
 	EnableCompression bool   `env:"ENABLE_COMPRESSION" envDefault:"true"`
+	LogLevel          string `env:"LOG_LEVEL" envDefault:"info"`
+	LogAddSource      bool   `env:"LOG_ADD_SOURCE" envDefault:"false"`
 }
 
 func Load() (Config, error) {
@@ -79,6 +84,10 @@ func Load() (Config, error) {
 	if raw.MaxRandomBytes < 1 {
 		return Config{}, fmt.Errorf("MAX_RANDOM_BYTES must be greater than 0")
 	}
+	logLevel, err := parseLogLevel("LOG_LEVEL", raw.LogLevel)
+	if err != nil {
+		return Config{}, err
+	}
 
 	return Config{
 		Addr:              raw.Addr,
@@ -93,6 +102,8 @@ func Load() (Config, error) {
 		MaxRandomBytes:    raw.MaxRandomBytes,
 		TrustProxyHeaders: raw.TrustProxyHeaders,
 		EnableCompression: raw.EnableCompression,
+		LogLevel:          logLevel,
+		LogAddSource:      raw.LogAddSource,
 	}, nil
 }
 
@@ -148,4 +159,12 @@ func parseByteNumber(name, value string, multiplier int64) (int64, error) {
 		return 0, fmt.Errorf("%s must not be negative", name)
 	}
 	return int64(n * float64(multiplier)), nil
+}
+
+func parseLogLevel(name, value string) (slog.Level, error) {
+	var level slog.Level
+	if err := level.UnmarshalText([]byte(strings.ToLower(strings.TrimSpace(value)))); err != nil {
+		return 0, fmt.Errorf("%s must be one of debug, info, warn, or error: %w", name, err)
+	}
+	return level, nil
 }

@@ -16,6 +16,7 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
+	"log/slog"
 	"math"
 	mathrand "math/rand"
 	"mime"
@@ -43,8 +44,8 @@ func NewRouter(cfg config.Config) http.Handler {
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
-	r.Use(middleware.Recoverer)
-	r.Use(middleware.Logger)
+	r.Use(slogRequestLogger(slog.Default()))
+	r.Use(slogRecoverer(slog.Default()))
 	if cfg.TrustProxyHeaders {
 		r.Use(middleware.RealIP)
 	}
@@ -55,7 +56,19 @@ func NewRouter(cfg config.Config) http.Handler {
 		r.Use(middleware.Compress(5, "application/json", "text/plain", "text/html", "application/xml", "image/svg+xml"))
 	}
 
-	api.HandlerFromMux(s, r)
+	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		writeHTTPError(w, http.StatusNotFound, "not found")
+	})
+	r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
+		writeHTTPError(w, http.StatusMethodNotAllowed, "method not allowed")
+	})
+
+	api.HandlerWithOptions(s, api.ChiServerOptions{
+		BaseRouter: r,
+		ErrorHandlerFunc: func(w http.ResponseWriter, r *http.Request, err error) {
+			writeHTTPError(w, http.StatusBadRequest, err.Error())
+		},
+	})
 	r.HandleFunc("/anything/*", s.echoWithBody(true))
 	r.Get("/base64/*", s.base64)
 
@@ -70,9 +83,7 @@ func (s *server) index(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) health(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte("ok\n"))
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (s *server) openAPIYAML(w http.ResponseWriter, r *http.Request) {
@@ -322,7 +333,7 @@ func quoteETag(value string) string {
 }
 
 func matchETag(header, etag string) bool {
-	for _, part := range strings.Split(header, ",") {
+	for part := range strings.SplitSeq(header, ",") {
 		if strings.TrimSpace(part) == etag || strings.TrimSpace(part) == "*" {
 			return true
 		}
@@ -405,7 +416,7 @@ func (s *server) stream(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	encoder := json.NewEncoder(w)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if err := r.Context().Err(); err != nil {
 			return
 		}
@@ -469,7 +480,7 @@ func (s *server) drip(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	interval := time.Duration(duration * float64(time.Second) / float64(numBytes))
-	for i := 0; i < numBytes; i++ {
+	for i := range numBytes {
 		if _, err := w.Write([]byte("*")); err != nil {
 			return
 		}
@@ -709,8 +720,8 @@ func (s *server) svgImage(w http.ResponseWriter, r *http.Request) {
 
 func testImage() image.Image {
 	img := image.NewRGBA(image.Rect(0, 0, 64, 64))
-	for y := 0; y < 64; y++ {
-		for x := 0; x < 64; x++ {
+	for y := range 64 {
+		for x := range 64 {
 			if (x/8+y/8)%2 == 0 {
 				img.Set(x, y, color.RGBA{R: 43, G: 127, B: 255, A: 255})
 			} else {
@@ -734,7 +745,7 @@ func (s *server) links(w http.ResponseWriter, r *http.Request) {
 
 	var b strings.Builder
 	b.WriteString("<html><body>")
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if i == offset {
 			fmt.Fprintf(&b, "%d ", i)
 			continue
@@ -805,7 +816,7 @@ func (s *server) origin(r *http.Request) string {
 }
 
 func firstForwardedFor(header string) string {
-	for _, field := range strings.Split(header, ";") {
+	for field := range strings.SplitSeq(header, ";") {
 		key, value, ok := strings.Cut(strings.TrimSpace(field), "=")
 		if ok && strings.EqualFold(key, "for") {
 			return strings.Trim(value, `"`)
@@ -841,13 +852,16 @@ func (s *server) absoluteURL(r *http.Request, path string) string {
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(value)
 }
 
 func writeHTTPError(w http.ResponseWriter, status int, message string) {
-	writeJSON(w, status, map[string]any{"error": message})
+	writeJSON(w, status, map[string]any{
+		"error":       message,
+		"status_code": status,
+	})
 }
 
 func writeRandom(w io.Writer, n int) {

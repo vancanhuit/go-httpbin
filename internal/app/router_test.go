@@ -6,6 +6,7 @@ import (
 	"compress/zlib"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/vancanhuit/go-httpbin/internal/config"
 )
 
@@ -39,10 +41,47 @@ func TestHealthEndpoints(t *testing.T) {
 		if rec.Code != http.StatusOK {
 			t.Fatalf("%s status = %d, want 200", path, rec.Code)
 		}
-		if rec.Body.String() != "ok\n" {
-			t.Fatalf("%s body = %q, want ok", path, rec.Body.String())
+		if got := rec.Header().Get("Content-Type"); got != "application/json; charset=utf-8" {
+			t.Fatalf("%s Content-Type = %q, want application/json", path, got)
+		}
+		var body map[string]string
+		decodeJSON(t, rec, &body)
+		if body["status"] != "ok" {
+			t.Fatalf("%s status body = %#v, want ok", path, body)
 		}
 	}
+}
+
+func TestDefaultErrorsAreJSON(t *testing.T) {
+	t.Run("not found", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/missing", nil, nil)
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("status = %d, want 404", rec.Code)
+		}
+		if got := rec.Header().Get("Content-Type"); got != "application/json; charset=utf-8" {
+			t.Fatalf("Content-Type = %q, want application/json", got)
+		}
+		var body map[string]any
+		decodeJSON(t, rec, &body)
+		if body["error"] != "not found" || body["status_code"] != float64(http.StatusNotFound) {
+			t.Fatalf("body = %#v", body)
+		}
+	})
+
+	t.Run("method not allowed", func(t *testing.T) {
+		rec := request(t, http.MethodPost, "/get", nil, nil)
+		if rec.Code != http.StatusMethodNotAllowed {
+			t.Fatalf("status = %d, want 405", rec.Code)
+		}
+		if got := rec.Header().Get("Content-Type"); got != "application/json; charset=utf-8" {
+			t.Fatalf("Content-Type = %q, want application/json", got)
+		}
+		var body map[string]any
+		decodeJSON(t, rec, &body)
+		if body["error"] != "method not allowed" || body["status_code"] != float64(http.StatusMethodNotAllowed) {
+			t.Fatalf("body = %#v", body)
+		}
+	})
 }
 
 func TestOpenAPIDocs(t *testing.T) {
@@ -433,6 +472,39 @@ func TestEncodedAndFormatEndpoints(t *testing.T) {
 			t.Fatalf("unexpected image response: status=%d content-type=%q len=%d", rec.Code, rec.Header().Get("Content-Type"), rec.Body.Len())
 		}
 	})
+}
+
+func TestSlogRequestLoggerWritesJSON(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&logs, nil))
+	handler := middleware.RequestID(slogRequestLogger(logger)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusCreated, map[string]string{"ok": "true"})
+	})))
+
+	req := httptest.NewRequest(http.MethodPost, "/log-test?x=1", nil)
+	req.Header.Set("User-Agent", "logger-test")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	var entry map[string]any
+	if err := json.Unmarshal(bytes.TrimSpace(logs.Bytes()), &entry); err != nil {
+		t.Fatalf("decode log JSON: %v; log=%q", err, logs.String())
+	}
+	if entry["msg"] != "http_request" {
+		t.Fatalf("msg = %v, want http_request", entry["msg"])
+	}
+	if entry["method"] != http.MethodPost || entry["path"] != "/log-test" || entry["query"] != "x=1" {
+		t.Fatalf("unexpected request fields: %#v", entry)
+	}
+	if entry["status"] != float64(http.StatusCreated) {
+		t.Fatalf("status = %v, want 201", entry["status"])
+	}
+	if entry["user_agent"] != "logger-test" {
+		t.Fatalf("user_agent = %v, want logger-test", entry["user_agent"])
+	}
+	if entry["request_id"] == "" {
+		t.Fatalf("missing request_id: %#v", entry)
+	}
 }
 
 func request(t *testing.T, method, target string, body io.Reader, headers map[string]string) *httptest.ResponseRecorder {

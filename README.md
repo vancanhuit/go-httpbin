@@ -36,6 +36,7 @@ go run ./cmd/server
 
 The default address is `:8080`.
 Swagger UI is available at `http://localhost:8080/docs`. The OpenAPI document is served at `http://localhost:8080/openapi.yaml`.
+Application logs are written to stdout as structured JSON with `log/slog`.
 
 ## OpenAPI code generation
 
@@ -65,6 +66,8 @@ Configuration follows 12-factor principles and is loaded from environment variab
 | `MAX_RANDOM_BYTES` | `1048576` | Maximum random byte response size |
 | `TRUST_PROXY_HEADERS` | `false` | Trust forwarded headers for origin and URL reporting |
 | `ENABLE_COMPRESSION` | `true` | Enable Chi response compression middleware |
+| `LOG_LEVEL` | `info` | JSON log level: `debug`, `info`, `warn`, or `error` |
+| `LOG_ADD_SOURCE` | `false` | Include source file and line in JSON logs |
 
 ## Implemented endpoint groups
 
