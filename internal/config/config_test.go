@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log/slog"
 	"testing"
 	"time"
 )
@@ -23,6 +24,9 @@ func TestLoadDefaults(t *testing.T) {
 	if !cfg.EnableCompression {
 		t.Fatal("EnableCompression = false, want true")
 	}
+	if cfg.LogLevel != slog.LevelInfo {
+		t.Fatalf("LogLevel = %s, want info", cfg.LogLevel)
+	}
 }
 
 func TestLoadEnvOverrides(t *testing.T) {
@@ -38,6 +42,8 @@ func TestLoadEnvOverrides(t *testing.T) {
 	t.Setenv("MAX_RANDOM_BYTES", "8")
 	t.Setenv("TRUST_PROXY_HEADERS", "true")
 	t.Setenv("ENABLE_COMPRESSION", "false")
+	t.Setenv("LOG_LEVEL", "debug")
+	t.Setenv("LOG_ADD_SOURCE", "true")
 
 	cfg, err := Load()
 	if err != nil {
@@ -56,6 +62,9 @@ func TestLoadEnvOverrides(t *testing.T) {
 	if !cfg.TrustProxyHeaders || cfg.EnableCompression {
 		t.Fatalf("unexpected boolean overrides: %+v", cfg)
 	}
+	if cfg.LogLevel != slog.LevelDebug || !cfg.LogAddSource {
+		t.Fatalf("unexpected log overrides: %+v", cfg)
+	}
 }
 
 func TestLoadRejectsInvalidValues(t *testing.T) {
@@ -64,6 +73,7 @@ func TestLoadRejectsInvalidValues(t *testing.T) {
 		"MAX_BODY_BYTES":   "large",
 		"MAX_STREAM_ITEMS": "0",
 		"MAX_RANDOM_BYTES": "0",
+		"LOG_LEVEL":        "trace",
 	}
 
 	for key, value := range tests {

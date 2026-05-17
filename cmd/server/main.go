@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,8 +15,9 @@ import (
 )
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 	if err := run(); err != nil {
-		fmt.Fprintf(os.Stderr, "server error: %v\n", err)
+		slog.Error("server_error", "error", err)
 		os.Exit(1)
 	}
 }
@@ -25,6 +27,12 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
+
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		AddSource: cfg.LogAddSource,
+		Level:     cfg.LogLevel,
+	}))
+	slog.SetDefault(logger)
 
 	server := &http.Server{
 		Addr:         cfg.Addr,
@@ -36,7 +44,7 @@ func run() error {
 
 	errCh := make(chan error, 1)
 	go func() {
-		_, _ = fmt.Fprintf(os.Stdout, "listening on %s\n", cfg.Addr)
+		logger.Info("server_starting", "addr", cfg.Addr)
 		errCh <- server.ListenAndServe()
 	}()
 
@@ -46,7 +54,7 @@ func run() error {
 
 	select {
 	case sig := <-signalCh:
-		_, _ = fmt.Fprintf(os.Stdout, "received %s, shutting down\n", sig)
+		logger.Info("server_shutdown_signal", "signal", sig.String())
 	case err := <-errCh:
 		if errors.Is(err, http.ErrServerClosed) {
 			return nil
@@ -59,5 +67,6 @@ func run() error {
 	if err := server.Shutdown(ctx); err != nil {
 		return fmt.Errorf("shutdown: %w", err)
 	}
+	logger.Info("server_stopped")
 	return nil
 }
