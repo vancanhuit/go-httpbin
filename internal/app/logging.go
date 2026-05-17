@@ -35,6 +35,7 @@ func slogRequestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 				level = slog.LevelWarn
 			}
 
+			elapsed := time.Since(started)
 			logger.LogAttrs(
 				r.Context(),
 				level,
@@ -42,13 +43,14 @@ func slogRequestLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 				slog.String("method", r.Method),
 				slog.String("path", r.URL.Path),
 				slog.String("query", r.URL.RawQuery),
+				slog.String("proto", r.Proto),
 				slog.String("host", r.Host),
 				slog.String("remote_addr", r.RemoteAddr),
 				slog.String("user_agent", r.UserAgent()),
 				slog.String("request_id", middleware.GetReqID(r.Context())),
 				slog.Int("status", status),
 				slog.Int("bytes", ww.BytesWritten()),
-				slog.Int64("duration_ms", time.Since(started).Milliseconds()),
+				slog.String("duration", elapsed.String()),
 			)
 		})
 	}
