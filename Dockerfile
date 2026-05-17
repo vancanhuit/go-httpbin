@@ -6,6 +6,7 @@ FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-trixie AS build
 
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
+ARG VERSION=dev
 
 WORKDIR /src
 
@@ -15,7 +16,7 @@ RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -trimpath -ldflags="-s -w" -o /out/go-httpbin ./cmd/server
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -trimpath -ldflags="-s -w -X github.com/vancanhuit/go-httpbin/internal/version.Version=${VERSION}" -o /out/go-httpbin ./cmd/server
 
 FROM gcr.io/distroless/static-debian13:nonroot
 

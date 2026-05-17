@@ -50,6 +50,7 @@ fi
 
 docker buildx build \
   --platform "${platforms}" \
+  --build-arg "VERSION=${release_tag}" \
   "${tags[@]}" \
   --push \
   .

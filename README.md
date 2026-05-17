@@ -74,7 +74,7 @@ git tag -a v0.1.0 -m v0.1.0
 git push origin v0.1.0
 ```
 
-Release images are tagged with the pushed tag, the SemVer version without the `v` prefix, and the git SHA. Stable releases also update `latest`, `v<major>`, and `v<major>.<minor>`.
+Release images are tagged with the pushed tag, the SemVer version without the `v` prefix, and the git SHA. Stable releases also update `latest`, `v<major>`, and `v<major>.<minor>`. The pushed tag is injected into release binaries and images and is available from `/version`.
 
 Each release also attaches `linux/amd64`, `linux/arm64`, `darwin/amd64`, `darwin/arm64`, `windows/amd64`, and `windows/arm64` binary archives with per-archive SHA-256 files plus a combined `checksums.txt`.
 
@@ -133,7 +133,7 @@ Configuration follows 12-factor principles and is loaded from environment variab
 - Dynamic data: `/uuid`, `/bytes/{n}`, `/stream-bytes/{n}`, `/stream/{n}`, `/delay/{delay}`, `/drip`, `/base64/{value}`
 - Cookies and redirects: `/cookies`, `/cookies/set`, `/cookies/set/{name}/{value}`, `/cookies/delete`, `/redirect/{n}`, `/relative-redirect/{n}`, `/absolute-redirect/{n}`, `/redirect-to`
 - Formats and media: `/gzip`, `/deflate`, `/brotli`, `/json`, `/xml`, `/html`, `/robots.txt`, `/deny`, `/encoding/utf8`, `/image`, `/image/png`, `/image/jpeg`, `/image/gif`, `/image/svg`, `/image/webp`, `/links/{n}/{offset}`
-- Operations: `/healthz`, `/readyz`
+- Operations: `/healthz`, `/readyz`, `/version`
 - API docs: `/openapi.yaml`, `/docs`
 
 ## Compatibility notes

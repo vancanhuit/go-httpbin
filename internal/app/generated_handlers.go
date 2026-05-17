@@ -14,6 +14,8 @@ func (s *server) Healthz(w http.ResponseWriter, r *http.Request) { s.health(w, r
 
 func (s *server) Readyz(w http.ResponseWriter, r *http.Request) { s.health(w, r) }
 
+func (s *server) Version(w http.ResponseWriter, r *http.Request) { s.version(w, r) }
+
 func (s *server) OpenAPIYAML(w http.ResponseWriter, r *http.Request) {
 	s.openAPIYAML(w, r)
 }

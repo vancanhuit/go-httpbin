@@ -5,6 +5,7 @@ release_tag="${GITHUB_REF_NAME:-dev}"
 version="${release_tag#v}"
 output_dir="${DIST_DIR:-dist}"
 platforms="${RELEASE_PLATFORMS:-linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64}"
+ldflags="-s -w -X github.com/vancanhuit/go-httpbin/internal/version.Version=${release_tag}"
 
 mkdir -p "${output_dir}"
 rm -rf "${output_dir:?}"/*
@@ -21,7 +22,7 @@ for platform in ${platforms}; do
   fi
 
   mkdir -p "${build_dir}"
-  CGO_ENABLED=0 GOOS="${os}" GOARCH="${arch}" go build -trimpath -ldflags="-s -w" -o "${build_dir}/${binary}" ./cmd/server
+  CGO_ENABLED=0 GOOS="${os}" GOARCH="${arch}" go build -trimpath -ldflags="${ldflags}" -o "${build_dir}/${binary}" ./cmd/server
   archive="${output_dir}/${name}.tar.gz"
   tar -C "${build_dir}" -czf "${archive}" "${binary}"
   sha256sum "${archive}" >"${archive}.sha256"
