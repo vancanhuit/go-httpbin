@@ -125,6 +125,9 @@ type ServerInterface interface {
 	// (GET /deny)
 	Deny(w http.ResponseWriter, r *http.Request)
 
+	// (GET /docs)
+	Docs(w http.ResponseWriter, r *http.Request)
+
 	// (GET /drip)
 	Drip(w http.ResponseWriter, r *http.Request)
 
@@ -175,6 +178,9 @@ type ServerInterface interface {
 
 	// (GET /links/{n}/{offset})
 	Links(w http.ResponseWriter, r *http.Request, n N, offset Offset)
+
+	// (GET /openapi.yaml)
+	OpenAPIYAML(w http.ResponseWriter, r *http.Request)
 
 	// (PATCH /patch)
 	PatchEcho(w http.ResponseWriter, r *http.Request)
@@ -368,6 +374,11 @@ func (_ Unimplemented) Deny(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (GET /docs)
+func (_ Unimplemented) Docs(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (GET /drip)
 func (_ Unimplemented) Drip(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -450,6 +461,11 @@ func (_ Unimplemented) JSON(w http.ResponseWriter, r *http.Request) {
 
 // (GET /links/{n}/{offset})
 func (_ Unimplemented) Links(w http.ResponseWriter, r *http.Request, n N, offset Offset) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /openapi.yaml)
+func (_ Unimplemented) OpenAPIYAML(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1083,6 +1099,20 @@ func (siw *ServerInterfaceWrapper) Deny(w http.ResponseWriter, r *http.Request) 
 	handler.ServeHTTP(w, r)
 }
 
+// Docs operation middleware
+func (siw *ServerInterfaceWrapper) Docs(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Docs(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // Drip operation middleware
 func (siw *ServerInterfaceWrapper) Drip(w http.ResponseWriter, r *http.Request) {
 
@@ -1366,6 +1396,20 @@ func (siw *ServerInterfaceWrapper) Links(w http.ResponseWriter, r *http.Request)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Links(w, r, n, offset)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// OpenAPIYAML operation middleware
+func (siw *ServerInterfaceWrapper) OpenAPIYAML(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.OpenAPIYAML(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1929,6 +1973,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/deny", wrapper.Deny)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/docs", wrapper.Docs)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/drip", wrapper.Drip)
 	})
 	r.Group(func(r chi.Router) {
@@ -1978,6 +2025,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/links/{n}/{offset}", wrapper.Links)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/openapi.yaml", wrapper.OpenAPIYAML)
 	})
 	r.Group(func(r chi.Router) {
 		r.Patch(options.BaseURL+"/patch", wrapper.PatchEcho)
