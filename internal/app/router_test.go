@@ -1,0 +1,424 @@
+package app
+
+import (
+	"bytes"
+	"compress/gzip"
+	"compress/zlib"
+	"encoding/json"
+	"io"
+	"mime/multipart"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/vancanhuit/go-httpbin/internal/config"
+)
+
+func testRouter() http.Handler {
+	return NewRouter(config.Config{
+		Addr:              ":8080",
+		ReadTimeout:       time.Second,
+		WriteTimeout:      time.Second,
+		IdleTimeout:       time.Second,
+		ShutdownTimeout:   time.Second,
+		HandlerTimeout:    time.Second,
+		MaxBodyBytes:      1024,
+		MaxDelay:          100 * time.Millisecond,
+		MaxStreamItems:    10,
+		MaxRandomBytes:    128,
+		TrustProxyHeaders: true,
+		EnableCompression: false,
+	})
+}
+
+func TestHealthEndpoints(t *testing.T) {
+	for _, path := range []string{"/healthz", "/readyz"} {
+		rec := request(t, http.MethodGet, path, nil, nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("%s status = %d, want 200", path, rec.Code)
+		}
+		if rec.Body.String() != "ok\n" {
+			t.Fatalf("%s body = %q, want ok", path, rec.Body.String())
+		}
+	}
+}
+
+func TestGetEcho(t *testing.T) {
+	rec := request(t, http.MethodGet, "/get?name=go&name=chi", nil, map[string]string{
+		"User-Agent":        "go-test",
+		"X-Forwarded-For":   "203.0.113.9, 10.0.0.1",
+		"X-Forwarded-Proto": "https",
+	})
+
+	var body map[string]any
+	decodeJSON(t, rec, &body)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body.String())
+	}
+	if body["origin"] != "203.0.113.9" {
+		t.Fatalf("origin = %v, want forwarded ip", body["origin"])
+	}
+	if body["url"] != "https://example.com/get?name=go&name=chi" {
+		t.Fatalf("url = %v", body["url"])
+	}
+	args := body["args"].(map[string]any)
+	names := args["name"].([]any)
+	if names[0] != "go" || names[1] != "chi" {
+		t.Fatalf("args[name] = %#v", args["name"])
+	}
+}
+
+func TestPostJSONEcho(t *testing.T) {
+	rec := request(t, http.MethodPost, "/post", strings.NewReader(`{"hello":"world"}`), map[string]string{
+		"Content-Type": "application/json",
+	})
+
+	var body map[string]any
+	decodeJSON(t, rec, &body)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body.String())
+	}
+	if body["data"] != `{"hello":"world"}` {
+		t.Fatalf("data = %v", body["data"])
+	}
+	jsonBody := body["json"].(map[string]any)
+	if jsonBody["hello"] != "world" {
+		t.Fatalf("json.hello = %v", jsonBody["hello"])
+	}
+}
+
+func TestPostFormEcho(t *testing.T) {
+	rec := request(t, http.MethodPost, "/post", strings.NewReader("a=1&a=2&b=3"), map[string]string{
+		"Content-Type": "application/x-www-form-urlencoded",
+	})
+
+	var body map[string]any
+	decodeJSON(t, rec, &body)
+	form := body["form"].(map[string]any)
+	if form["b"] != "3" {
+		t.Fatalf("form[b] = %v", form["b"])
+	}
+	values := form["a"].([]any)
+	if values[0] != "1" || values[1] != "2" {
+		t.Fatalf("form[a] = %#v", form["a"])
+	}
+}
+
+func TestPostMultipartEcho(t *testing.T) {
+	var b bytes.Buffer
+	writer := multipart.NewWriter(&b)
+	if err := writer.WriteField("field", "value"); err != nil {
+		t.Fatal(err)
+	}
+	part, err := writer.CreateFormFile("upload", "test.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = part.Write([]byte("hello"))
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := request(t, http.MethodPost, "/post", &b, map[string]string{
+		"Content-Type": writer.FormDataContentType(),
+	})
+
+	var body map[string]any
+	decodeJSON(t, rec, &body)
+	form := body["form"].(map[string]any)
+	files := body["files"].(map[string]any)
+	if form["field"] != "value" {
+		t.Fatalf("form[field] = %v", form["field"])
+	}
+	upload := files["upload"].(map[string]any)
+	if upload["filename"] != "test.txt" {
+		t.Fatalf("filename = %v", upload["filename"])
+	}
+}
+
+func TestAnythingIncludesMethod(t *testing.T) {
+	rec := request(t, http.MethodPatch, "/anything/a/b?x=1", strings.NewReader("raw"), map[string]string{
+		"Content-Type": "text/plain",
+	})
+
+	var body map[string]any
+	decodeJSON(t, rec, &body)
+	if body["method"] != http.MethodPatch {
+		t.Fatalf("method = %v", body["method"])
+	}
+	if body["data"] != "raw" {
+		t.Fatalf("data = %v", body["data"])
+	}
+}
+
+func TestRequestInspection(t *testing.T) {
+	t.Run("headers", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/headers", nil, map[string]string{"X-Test": "ok"})
+		var body map[string]map[string]string
+		decodeJSON(t, rec, &body)
+		if body["headers"]["X-Test"] != "ok" {
+			t.Fatalf("headers[X-Test] = %q", body["headers"]["X-Test"])
+		}
+	})
+
+	t.Run("ip", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/ip", nil, map[string]string{"X-Forwarded-For": "198.51.100.5"})
+		var body map[string]string
+		decodeJSON(t, rec, &body)
+		if body["origin"] != "198.51.100.5" {
+			t.Fatalf("origin = %q", body["origin"])
+		}
+	})
+
+	t.Run("user-agent", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/user-agent", nil, map[string]string{"User-Agent": "agent"})
+		var body map[string]string
+		decodeJSON(t, rec, &body)
+		if body["user-agent"] != "agent" {
+			t.Fatalf("user-agent = %q", body["user-agent"])
+		}
+	})
+}
+
+func TestStatusEndpoint(t *testing.T) {
+	rec := request(t, http.MethodGet, "/status/418", nil, nil)
+	if rec.Code != http.StatusTeapot {
+		t.Fatalf("status = %d, want 418", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "teapot") {
+		t.Fatalf("body = %q", rec.Body.String())
+	}
+
+	rec = request(t, http.MethodGet, "/status/999", nil, nil)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", rec.Code)
+	}
+}
+
+func TestCacheAndETag(t *testing.T) {
+	rec := request(t, http.MethodGet, "/cache/60", nil, nil)
+	if rec.Header().Get("Cache-Control") != "public, max-age=60" {
+		t.Fatalf("Cache-Control = %q", rec.Header().Get("Cache-Control"))
+	}
+
+	rec = request(t, http.MethodGet, "/etag/test", nil, map[string]string{"If-None-Match": `"test"`})
+	if rec.Code != http.StatusNotModified {
+		t.Fatalf("status = %d, want 304", rec.Code)
+	}
+}
+
+func TestResponseHeaders(t *testing.T) {
+	rec := request(t, http.MethodGet, "/response-headers?X-Test=ok", nil, nil)
+	if rec.Header().Get("X-Test") != "ok" {
+		t.Fatalf("X-Test header = %q", rec.Header().Get("X-Test"))
+	}
+	var body map[string]string
+	decodeJSON(t, rec, &body)
+	if body["X-Test"] != "ok" {
+		t.Fatalf("body X-Test = %q", body["X-Test"])
+	}
+}
+
+func TestAuthEndpoints(t *testing.T) {
+	t.Run("basic ok", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/basic-auth/user/pass", nil)
+		req.SetBasicAuth("user", "pass")
+		rec := httptest.NewRecorder()
+		testRouter().ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+	})
+
+	t.Run("basic fail", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/basic-auth/user/pass", nil, nil)
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("status = %d, want 401", rec.Code)
+		}
+	})
+
+	t.Run("hidden fail", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/hidden-basic-auth/user/pass", nil, nil)
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("status = %d, want 404", rec.Code)
+		}
+	})
+
+	t.Run("bearer", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/bearer", nil, map[string]string{"Authorization": "Bearer abc"})
+		var body map[string]any
+		decodeJSON(t, rec, &body)
+		if body["token"] != "abc" {
+			t.Fatalf("token = %v", body["token"])
+		}
+	})
+}
+
+func TestDynamicEndpoints(t *testing.T) {
+	t.Run("uuid", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/uuid", nil, nil)
+		var body map[string]string
+		decodeJSON(t, rec, &body)
+		if len(body["uuid"]) != 36 {
+			t.Fatalf("uuid = %q", body["uuid"])
+		}
+	})
+
+	t.Run("bytes", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/bytes/16", nil, nil)
+		if rec.Code != http.StatusOK || rec.Body.Len() != 16 {
+			t.Fatalf("status/body = %d/%d, want 200/16", rec.Code, rec.Body.Len())
+		}
+	})
+
+	t.Run("stream", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/stream/3", nil, nil)
+		lines := strings.Split(strings.TrimSpace(rec.Body.String()), "\n")
+		if len(lines) != 3 {
+			t.Fatalf("lines = %d, want 3: %q", len(lines), rec.Body.String())
+		}
+	})
+
+	t.Run("delay", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/delay/0", nil, nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+	})
+
+	t.Run("drip", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/drip?duration=0&numbytes=4&code=201", nil, nil)
+		if rec.Code != http.StatusCreated || rec.Body.String() != "****" {
+			t.Fatalf("status/body = %d/%q", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("base64", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/base64/aGVsbG8=", nil, nil)
+		if rec.Code != http.StatusOK || rec.Body.String() != "hello" {
+			t.Fatalf("status/body = %d/%q", rec.Code, rec.Body.String())
+		}
+	})
+}
+
+func TestLimits(t *testing.T) {
+	rec := request(t, http.MethodPost, "/post", strings.NewReader(strings.Repeat("x", 2048)), nil)
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, want 413", rec.Code)
+	}
+
+	rec = request(t, http.MethodGet, "/bytes/129", nil, nil)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", rec.Code)
+	}
+
+	rec = request(t, http.MethodGet, "/delay/1", nil, nil)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", rec.Code)
+	}
+}
+
+func TestCookiesAndRedirects(t *testing.T) {
+	t.Run("cookies", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/cookies", nil, map[string]string{"Cookie": "a=1; b=2"})
+		var body map[string]map[string]string
+		decodeJSON(t, rec, &body)
+		if body["cookies"]["a"] != "1" || body["cookies"]["b"] != "2" {
+			t.Fatalf("cookies = %#v", body["cookies"])
+		}
+	})
+
+	t.Run("set cookie", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/cookies/set/session/abc", nil, nil)
+		if rec.Code != http.StatusFound {
+			t.Fatalf("status = %d, want 302", rec.Code)
+		}
+		if rec.Header().Get("Location") != "/cookies" {
+			t.Fatalf("Location = %q", rec.Header().Get("Location"))
+		}
+	})
+
+	t.Run("redirect", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/redirect-to?url=/get&status_code=307", nil, nil)
+		if rec.Code != http.StatusTemporaryRedirect || rec.Header().Get("Location") != "/get" {
+			t.Fatalf("status/location = %d/%q", rec.Code, rec.Header().Get("Location"))
+		}
+	})
+}
+
+func TestEncodedAndFormatEndpoints(t *testing.T) {
+	t.Run("gzip", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/gzip", nil, nil)
+		if rec.Header().Get("Content-Encoding") != "gzip" {
+			t.Fatalf("Content-Encoding = %q", rec.Header().Get("Content-Encoding"))
+		}
+		reader, err := gzip.NewReader(rec.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() {
+			_ = reader.Close()
+		}()
+		var body map[string]any
+		if err := json.NewDecoder(reader).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body["gzipped"] != true {
+			t.Fatalf("gzipped = %v", body["gzipped"])
+		}
+	})
+
+	t.Run("deflate", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/deflate", nil, nil)
+		reader, err := zlib.NewReader(rec.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() {
+			_ = reader.Close()
+		}()
+		var body map[string]any
+		if err := json.NewDecoder(reader).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body["deflated"] != true {
+			t.Fatalf("deflated = %v", body["deflated"])
+		}
+	})
+
+	t.Run("json", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/json", nil, nil)
+		var body map[string]any
+		decodeJSON(t, rec, &body)
+		if body["slideshow"] == nil {
+			t.Fatalf("missing slideshow: %#v", body)
+		}
+	})
+
+	t.Run("image", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/image/png", nil, nil)
+		if rec.Code != http.StatusOK || rec.Header().Get("Content-Type") != "image/png" || rec.Body.Len() == 0 {
+			t.Fatalf("unexpected image response: status=%d content-type=%q len=%d", rec.Code, rec.Header().Get("Content-Type"), rec.Body.Len())
+		}
+	})
+}
+
+func request(t *testing.T, method, target string, body io.Reader, headers map[string]string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(method, target, body)
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+	rec := httptest.NewRecorder()
+	testRouter().ServeHTTP(rec, req)
+	return rec
+}
+
+func decodeJSON(t *testing.T, rec *httptest.ResponseRecorder, value any) {
+	t.Helper()
+	if err := json.Unmarshal(rec.Body.Bytes(), value); err != nil {
+		t.Fatalf("decode JSON: %v; body=%q", err, rec.Body.String())
+	}
+}

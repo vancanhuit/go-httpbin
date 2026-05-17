@@ -1,0 +1,534 @@
+openapi: 3.0.3
+info:
+  title: go-httpbin
+  version: 0.1.0
+  description: HTTP request and response testing service with practical httpbin parity.
+servers:
+  - url: /
+paths:
+  /:
+    get:
+      operationId: Index
+      responses:
+        "200":
+          description: Service metadata.
+  /healthz:
+    get:
+      operationId: Healthz
+      responses:
+        "200":
+          description: Liveness check.
+  /readyz:
+    get:
+      operationId: Readyz
+      responses:
+        "200":
+          description: Readiness check.
+  /get:
+    get:
+      operationId: GetEcho
+      responses:
+        "200":
+          description: Request echo.
+  /post:
+    post:
+      operationId: PostEcho
+      requestBody:
+        content:
+          "*/*":
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Request echo.
+  /put:
+    put:
+      operationId: PutEcho
+      requestBody:
+        content:
+          "*/*":
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Request echo.
+  /patch:
+    patch:
+      operationId: PatchEcho
+      requestBody:
+        content:
+          "*/*":
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Request echo.
+  /delete:
+    delete:
+      operationId: DeleteEcho
+      responses:
+        "200":
+          description: Request echo.
+  /anything:
+    get:
+      operationId: AnythingGet
+      responses:
+        "200":
+          description: Request echo.
+    post:
+      operationId: AnythingPost
+      requestBody:
+        content:
+          "*/*":
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Request echo.
+    put:
+      operationId: AnythingPut
+      requestBody:
+        content:
+          "*/*":
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Request echo.
+    patch:
+      operationId: AnythingPatch
+      requestBody:
+        content:
+          "*/*":
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Request echo.
+    delete:
+      operationId: AnythingDelete
+      responses:
+        "200":
+          description: Request echo.
+  /anything/{path}:
+    parameters:
+      - $ref: "#/components/parameters/Path"
+    get:
+      operationId: AnythingPathGet
+      responses:
+        "200":
+          description: Request echo.
+    post:
+      operationId: AnythingPathPost
+      requestBody:
+        content:
+          "*/*":
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Request echo.
+    put:
+      operationId: AnythingPathPut
+      requestBody:
+        content:
+          "*/*":
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Request echo.
+    patch:
+      operationId: AnythingPathPatch
+      requestBody:
+        content:
+          "*/*":
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Request echo.
+    delete:
+      operationId: AnythingPathDelete
+      responses:
+        "200":
+          description: Request echo.
+  /headers:
+    get:
+      operationId: Headers
+      responses:
+        "200":
+          description: Request headers.
+  /ip:
+    get:
+      operationId: IP
+      responses:
+        "200":
+          description: Origin IP.
+  /user-agent:
+    get:
+      operationId: UserAgent
+      responses:
+        "200":
+          description: User agent.
+  /status/{codes}:
+    parameters:
+      - $ref: "#/components/parameters/Codes"
+    get:
+      operationId: StatusGet
+      responses:
+        default:
+          description: Requested status.
+    post:
+      operationId: StatusPost
+      responses:
+        default:
+          description: Requested status.
+    put:
+      operationId: StatusPut
+      responses:
+        default:
+          description: Requested status.
+    delete:
+      operationId: StatusDelete
+      responses:
+        default:
+          description: Requested status.
+  /response-headers:
+    get:
+      operationId: ResponseHeadersGet
+      responses:
+        "200":
+          description: Echo query values as response headers.
+    post:
+      operationId: ResponseHeadersPost
+      responses:
+        "200":
+          description: Echo query values as response headers.
+  /cache:
+    get:
+      operationId: Cache
+      responses:
+        "200":
+          description: Cacheable response.
+  /cache/{seconds}:
+    parameters:
+      - $ref: "#/components/parameters/Seconds"
+    get:
+      operationId: CacheSeconds
+      responses:
+        "200":
+          description: Cacheable response.
+  /etag/{etag}:
+    parameters:
+      - $ref: "#/components/parameters/ETag"
+    get:
+      operationId: ETag
+      responses:
+        "200":
+          description: ETag response.
+        "304":
+          description: Not modified.
+  /basic-auth/{user}/{password}:
+    parameters:
+      - $ref: "#/components/parameters/User"
+      - $ref: "#/components/parameters/Password"
+    get:
+      operationId: BasicAuth
+      responses:
+        "200":
+          description: Authenticated.
+        "401":
+          description: Unauthorized.
+  /hidden-basic-auth/{user}/{password}:
+    parameters:
+      - $ref: "#/components/parameters/User"
+      - $ref: "#/components/parameters/Password"
+    get:
+      operationId: HiddenBasicAuth
+      responses:
+        "200":
+          description: Authenticated.
+        "404":
+          description: Hidden unauthorized response.
+  /bearer:
+    get:
+      operationId: Bearer
+      responses:
+        "200":
+          description: Bearer token accepted.
+        "401":
+          description: Unauthorized.
+  /uuid:
+    get:
+      operationId: UUID
+      responses:
+        "200":
+          description: Random UUID.
+  /bytes/{n}:
+    parameters:
+      - $ref: "#/components/parameters/N"
+    get:
+      operationId: Bytes
+      responses:
+        "200":
+          description: Random bytes.
+  /stream-bytes/{n}:
+    parameters:
+      - $ref: "#/components/parameters/N"
+    get:
+      operationId: StreamBytes
+      responses:
+        "200":
+          description: Streamed random bytes.
+  /stream/{n}:
+    parameters:
+      - $ref: "#/components/parameters/N"
+    get:
+      operationId: Stream
+      responses:
+        "200":
+          description: JSON stream.
+  /delay/{delay}:
+    parameters:
+      - $ref: "#/components/parameters/Delay"
+    get:
+      operationId: Delay
+      responses:
+        "200":
+          description: Delayed echo.
+  /drip:
+    get:
+      operationId: Drip
+      responses:
+        "200":
+          description: Dripped bytes.
+  /base64/{value}:
+    parameters:
+      - $ref: "#/components/parameters/Value"
+    get:
+      operationId: Base64Decode
+      responses:
+        "200":
+          description: Decoded base64.
+  /cookies:
+    get:
+      operationId: Cookies
+      responses:
+        "200":
+          description: Cookies sent by the client.
+  /cookies/set:
+    get:
+      operationId: SetCookiesFromQuery
+      responses:
+        "302":
+          description: Redirect to cookie listing.
+  /cookies/set/{name}/{value}:
+    parameters:
+      - $ref: "#/components/parameters/Name"
+      - $ref: "#/components/parameters/Value"
+    get:
+      operationId: SetCookie
+      responses:
+        "302":
+          description: Redirect to cookie listing.
+  /cookies/delete:
+    get:
+      operationId: DeleteCookies
+      responses:
+        "302":
+          description: Redirect to cookie listing.
+  /redirect/{n}:
+    parameters:
+      - $ref: "#/components/parameters/N"
+    get:
+      operationId: Redirect
+      responses:
+        "302":
+          description: Redirect.
+  /relative-redirect/{n}:
+    parameters:
+      - $ref: "#/components/parameters/N"
+    get:
+      operationId: RelativeRedirect
+      responses:
+        "302":
+          description: Relative redirect.
+  /absolute-redirect/{n}:
+    parameters:
+      - $ref: "#/components/parameters/N"
+    get:
+      operationId: AbsoluteRedirect
+      responses:
+        "302":
+          description: Absolute redirect.
+  /redirect-to:
+    get:
+      operationId: RedirectTo
+      responses:
+        "302":
+          description: Redirect to query URL.
+  /gzip:
+    get:
+      operationId: Gzip
+      responses:
+        "200":
+          description: Gzipped JSON.
+  /deflate:
+    get:
+      operationId: Deflate
+      responses:
+        "200":
+          description: Deflated JSON.
+  /json:
+    get:
+      operationId: JSON
+      responses:
+        "200":
+          description: Sample JSON.
+  /xml:
+    get:
+      operationId: XML
+      responses:
+        "200":
+          description: Sample XML.
+  /html:
+    get:
+      operationId: HTML
+      responses:
+        "200":
+          description: Sample HTML.
+  /robots.txt:
+    get:
+      operationId: Robots
+      responses:
+        "200":
+          description: robots.txt.
+  /deny:
+    get:
+      operationId: Deny
+      responses:
+        "200":
+          description: Deny text.
+  /encoding/utf8:
+    get:
+      operationId: UTF8
+      responses:
+        "200":
+          description: UTF-8 sample.
+  /image:
+    get:
+      operationId: Image
+      responses:
+        "200":
+          description: Image selected from Accept header.
+  /image/png:
+    get:
+      operationId: ImagePNG
+      responses:
+        "200":
+          description: PNG image.
+  /image/jpeg:
+    get:
+      operationId: ImageJPEG
+      responses:
+        "200":
+          description: JPEG image.
+  /image/gif:
+    get:
+      operationId: ImageGIF
+      responses:
+        "200":
+          description: GIF image.
+  /image/svg:
+    get:
+      operationId: ImageSVG
+      responses:
+        "200":
+          description: SVG image.
+  /links/{n}/{offset}:
+    parameters:
+      - $ref: "#/components/parameters/N"
+      - $ref: "#/components/parameters/Offset"
+    get:
+      operationId: Links
+      responses:
+        "200":
+          description: HTML links.
+components:
+  parameters:
+    Codes:
+      name: codes
+      in: path
+      required: true
+      schema:
+        type: string
+    Delay:
+      name: delay
+      in: path
+      required: true
+      schema:
+        type: string
+    ETag:
+      name: etag
+      in: path
+      required: true
+      schema:
+        type: string
+    N:
+      name: n
+      in: path
+      required: true
+      schema:
+        type: integer
+    Name:
+      name: name
+      in: path
+      required: true
+      schema:
+        type: string
+    Offset:
+      name: offset
+      in: path
+      required: true
+      schema:
+        type: integer
+    Password:
+      name: password
+      in: path
+      required: true
+      schema:
+        type: string
+    Path:
+      name: path
+      in: path
+      required: true
+      schema:
+        type: string
+    Seconds:
+      name: seconds
+      in: path
+      required: true
+      schema:
+        type: integer
+    User:
+      name: user
+      in: path
+      required: true
+      schema:
+        type: string
+    Value:
+      name: value
+      in: path
+      required: true
+      schema:
+        type: string

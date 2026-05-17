@@ -1,0 +1,19 @@
+# Build artifacts
+bin/
+dist/
+tmp/
+
+# Node tooling
+node_modules/
+npm-debug.log*
+
+# Test and profiling output
+coverage.out
+coverage.*
+*.test
+*.prof
+
+# Local environment files
+.env
+.env.*
+!.env.example
