@@ -78,6 +78,8 @@ curl http://127.0.0.1:8080/healthz
 
 The manifest deploys `ghcr.io/vancanhuit/go-httpbin:latest` with readiness and liveness probes, a `ClusterIP` service, non-root security settings, and environment-based configuration. Pull request CI verifies it in a kind cluster.
 
+Gateway API resources for kind are available in `deploy/kubernetes/gateway.yaml`. They target the `cloud-provider-kind` GatewayClass and route `go-httpbin.local` to the `go-httpbin` service.
+
 ## OpenAPI code generation
 
 Routes are described in `api/openapi.yaml`, and Chi server glue is generated with `oapi-codegen`.
