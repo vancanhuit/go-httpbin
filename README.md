@@ -65,6 +65,19 @@ ghcr.io/vancanhuit/go-httpbin:<git-sha>
 
 The build stage uses the Go Debian trixie image. The runtime image uses the Debian 13 distroless nonroot base, and keeps configuration in environment variables.
 
+## Release
+
+Push a SemVer tag to create a GitHub Release with `git-cliff` release notes and publish a multi-platform GHCR image:
+
+```sh
+git tag -a v0.1.0 -m v0.1.0
+git push origin v0.1.0
+```
+
+Release images are tagged with the pushed tag, the SemVer version without the `v` prefix, and the git SHA. Stable releases also update `latest`, `v<major>`, and `v<major>.<minor>`.
+
+Each release also attaches `linux/amd64`, `linux/arm64`, `darwin/amd64`, `darwin/arm64`, `windows/amd64`, and `windows/arm64` binary archives with per-archive SHA-256 files plus a combined `checksums.txt`.
+
 ## Kubernetes
 
 Apply the sample manifest:
