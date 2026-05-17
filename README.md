@@ -18,6 +18,7 @@ go generate ./...
 golangci-lint fmt
 golangci-lint run
 go test -v -cover -race ./...
+docker build -t go-httpbin:dev .
 ```
 
 Install Git hooks:
@@ -37,6 +38,32 @@ go run ./cmd/server
 The default address is `:8080`.
 Swagger UI is available at `http://localhost:8080/docs`. The OpenAPI document is served at `http://localhost:8080/openapi.yaml`.
 Application logs are written to stdout as structured JSON with `log/slog`.
+
+## Container
+
+Build and run the container image:
+
+```sh
+docker build -t go-httpbin:dev .
+docker run --rm -p 8080:8080 go-httpbin:dev
+```
+
+Build a multi-platform image archive:
+
+```sh
+docker buildx build --platform linux/amd64,linux/arm64 -t go-httpbin:dev --output=type=oci,dest=/tmp/go-httpbin-image.tar .
+```
+
+Pull request builds archive the OCI tarball as the `go-httpbin-oci-image` workflow artifact.
+
+Pushes to `main` publish multi-platform images to GHCR as:
+
+```text
+ghcr.io/vancanhuit/go-httpbin:latest
+ghcr.io/vancanhuit/go-httpbin:<git-sha>
+```
+
+The build stage uses the Go Debian trixie image. The runtime image uses the Debian 13 distroless nonroot base, and keeps configuration in environment variables.
 
 ## OpenAPI code generation
 

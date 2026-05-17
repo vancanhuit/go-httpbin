@@ -1,0 +1,15 @@
+.cache
+.git
+.github
+.idea
+.vscode
+
+bin
+dist
+tmp
+node_modules
+
+*.test
+coverage.out
+Dockerfile
+README.md
