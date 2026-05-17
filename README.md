@@ -65,6 +65,19 @@ ghcr.io/vancanhuit/go-httpbin:<git-sha>
 
 The build stage uses the Go Debian trixie image. The runtime image uses the Debian 13 distroless nonroot base, and keeps configuration in environment variables.
 
+## Kubernetes
+
+Apply the sample manifest:
+
+```sh
+kubectl apply -f deploy/kubernetes/go-httpbin.yaml
+kubectl -n go-httpbin rollout status deployment/go-httpbin
+kubectl -n go-httpbin port-forward service/go-httpbin 8080:80
+curl http://127.0.0.1:8080/healthz
+```
+
+The manifest deploys `ghcr.io/vancanhuit/go-httpbin:latest` with readiness and liveness probes, a `ClusterIP` service, non-root security settings, and environment-based configuration. Pull request CI verifies it in a kind cluster.
+
 ## OpenAPI code generation
 
 Routes are described in `api/openapi.yaml`, and Chi server glue is generated with `oapi-codegen`.
