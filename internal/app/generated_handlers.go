@@ -56,6 +56,10 @@ func (s *server) AnythingPatch(w http.ResponseWriter, r *http.Request) {
 	s.writeEcho(w, r, true, true)
 }
 
+func (s *server) AnythingTrace(w http.ResponseWriter, r *http.Request) {
+	s.writeEcho(w, r, true, true)
+}
+
 func (s *server) AnythingDelete(w http.ResponseWriter, r *http.Request) {
 	s.writeEcho(w, r, true, true)
 }
@@ -73,6 +77,10 @@ func (s *server) AnythingPathPut(w http.ResponseWriter, r *http.Request, _ api.P
 }
 
 func (s *server) AnythingPathPatch(w http.ResponseWriter, r *http.Request, _ api.Path) {
+	s.writeEcho(w, r, true, true)
+}
+
+func (s *server) AnythingPathTrace(w http.ResponseWriter, r *http.Request, _ api.Path) {
 	s.writeEcho(w, r, true, true)
 }
 
@@ -98,7 +106,15 @@ func (s *server) StatusPut(w http.ResponseWriter, r *http.Request, _ api.Codes) 
 	s.status(w, r)
 }
 
+func (s *server) StatusPatch(w http.ResponseWriter, r *http.Request, _ api.Codes) {
+	s.status(w, r)
+}
+
 func (s *server) StatusDelete(w http.ResponseWriter, r *http.Request, _ api.Codes) {
+	s.status(w, r)
+}
+
+func (s *server) StatusTrace(w http.ResponseWriter, r *http.Request, _ api.Codes) {
 	s.status(w, r)
 }
 
@@ -126,6 +142,33 @@ func (s *server) HiddenBasicAuth(w http.ResponseWriter, r *http.Request, _ api.U
 	s.basicAuth(true)(w, r)
 }
 
+func (s *server) DigestAuth(w http.ResponseWriter, r *http.Request, qop api.QOP, user api.User, password api.Password) {
+	s.digestAuth(w, r, qop, user, password, "MD5", "never")
+}
+
+func (s *server) DigestAuthAlgorithm(
+	w http.ResponseWriter,
+	r *http.Request,
+	qop api.QOP,
+	user api.User,
+	password api.Password,
+	algorithm api.Algorithm,
+) {
+	s.digestAuth(w, r, qop, user, password, algorithm, "never")
+}
+
+func (s *server) DigestAuthAlgorithmStale(
+	w http.ResponseWriter,
+	r *http.Request,
+	qop api.QOP,
+	user api.User,
+	password api.Password,
+	algorithm api.Algorithm,
+	staleAfter api.StaleAfter,
+) {
+	s.digestAuth(w, r, qop, user, password, algorithm, staleAfter)
+}
+
 func (s *server) Bearer(w http.ResponseWriter, r *http.Request) { s.bearer(w, r) }
 
 func (s *server) UUID(w http.ResponseWriter, r *http.Request) { s.uuid(w, r) }
@@ -138,7 +181,19 @@ func (s *server) StreamBytes(w http.ResponseWriter, r *http.Request, _ api.N) {
 
 func (s *server) Stream(w http.ResponseWriter, r *http.Request, _ api.N) { s.stream(w, r) }
 
+func (s *server) Range(w http.ResponseWriter, r *http.Request, _ api.NumBytes) { s.rangeBytes(w, r) }
+
 func (s *server) Delay(w http.ResponseWriter, r *http.Request, _ api.Delay) { s.delay(w, r) }
+
+func (s *server) DelayPost(w http.ResponseWriter, r *http.Request, _ api.Delay) { s.delay(w, r) }
+
+func (s *server) DelayPut(w http.ResponseWriter, r *http.Request, _ api.Delay) { s.delay(w, r) }
+
+func (s *server) DelayPatch(w http.ResponseWriter, r *http.Request, _ api.Delay) { s.delay(w, r) }
+
+func (s *server) DelayDelete(w http.ResponseWriter, r *http.Request, _ api.Delay) { s.delay(w, r) }
+
+func (s *server) DelayTrace(w http.ResponseWriter, r *http.Request, _ api.Delay) { s.delay(w, r) }
 
 func (s *server) Drip(w http.ResponseWriter, r *http.Request) { s.drip(w, r) }
 
@@ -172,9 +227,21 @@ func (s *server) AbsoluteRedirect(w http.ResponseWriter, r *http.Request, _ api.
 
 func (s *server) RedirectTo(w http.ResponseWriter, r *http.Request) { s.redirectTo(w, r) }
 
+func (s *server) RedirectToPost(w http.ResponseWriter, r *http.Request) { s.redirectTo(w, r) }
+
+func (s *server) RedirectToPut(w http.ResponseWriter, r *http.Request) { s.redirectTo(w, r) }
+
+func (s *server) RedirectToPatch(w http.ResponseWriter, r *http.Request) { s.redirectTo(w, r) }
+
+func (s *server) RedirectToDelete(w http.ResponseWriter, r *http.Request) { s.redirectTo(w, r) }
+
+func (s *server) RedirectToTrace(w http.ResponseWriter, r *http.Request) { s.redirectTo(w, r) }
+
 func (s *server) Gzip(w http.ResponseWriter, r *http.Request) { s.gzip(w, r) }
 
 func (s *server) Deflate(w http.ResponseWriter, r *http.Request) { s.deflate(w, r) }
+
+func (s *server) Brotli(w http.ResponseWriter, r *http.Request) { s.brotli(w, r) }
 
 func (s *server) JSON(w http.ResponseWriter, r *http.Request) { s.json(w, r) }
 
@@ -197,6 +264,8 @@ func (s *server) ImageJPEG(w http.ResponseWriter, r *http.Request) { s.jpegImage
 func (s *server) ImageGIF(w http.ResponseWriter, r *http.Request) { s.gifImage(w, r) }
 
 func (s *server) ImageSVG(w http.ResponseWriter, r *http.Request) { s.svgImage(w, r) }
+
+func (s *server) ImageWEBP(w http.ResponseWriter, r *http.Request) { s.webpImage(w, r) }
 
 func (s *server) Links(w http.ResponseWriter, r *http.Request, _ api.N, _ api.Offset) {
 	s.links(w, r)

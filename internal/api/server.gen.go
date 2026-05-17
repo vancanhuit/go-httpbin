@@ -11,6 +11,9 @@ import (
 	"github.com/oapi-codegen/runtime"
 )
 
+// Algorithm defines model for Algorithm.
+type Algorithm = string
+
 // Codes defines model for Codes.
 type Codes = string
 
@@ -26,6 +29,9 @@ type N = int
 // Name defines model for Name.
 type Name = string
 
+// NumBytes defines model for NumBytes.
+type NumBytes = int
+
 // Offset defines model for Offset.
 type Offset = int
 
@@ -35,8 +41,14 @@ type Password = string
 // Path defines model for Path.
 type Path = string
 
+// QOP defines model for QOP.
+type QOP = string
+
 // Seconds defines model for Seconds.
 type Seconds = int
+
+// StaleAfter defines model for StaleAfter.
+type StaleAfter = string
 
 // User defines model for User.
 type User = string
@@ -68,6 +80,9 @@ type ServerInterface interface {
 	// (PUT /anything)
 	AnythingPut(w http.ResponseWriter, r *http.Request)
 
+	// (TRACE /anything)
+	AnythingTrace(w http.ResponseWriter, r *http.Request)
+
 	// (DELETE /anything/{path})
 	AnythingPathDelete(w http.ResponseWriter, r *http.Request, path Path)
 
@@ -83,6 +98,9 @@ type ServerInterface interface {
 	// (PUT /anything/{path})
 	AnythingPathPut(w http.ResponseWriter, r *http.Request, path Path)
 
+	// (TRACE /anything/{path})
+	AnythingPathTrace(w http.ResponseWriter, r *http.Request, path Path)
+
 	// (GET /base64/{value})
 	Base64Decode(w http.ResponseWriter, r *http.Request, value Value)
 
@@ -91,6 +109,9 @@ type ServerInterface interface {
 
 	// (GET /bearer)
 	Bearer(w http.ResponseWriter, r *http.Request)
+
+	// (GET /brotli)
+	Brotli(w http.ResponseWriter, r *http.Request)
 
 	// (GET /bytes/{n})
 	Bytes(w http.ResponseWriter, r *http.Request, n N)
@@ -116,14 +137,38 @@ type ServerInterface interface {
 	// (GET /deflate)
 	Deflate(w http.ResponseWriter, r *http.Request)
 
+	// (DELETE /delay/{delay})
+	DelayDelete(w http.ResponseWriter, r *http.Request, delay Delay)
+
 	// (GET /delay/{delay})
 	Delay(w http.ResponseWriter, r *http.Request, delay Delay)
+
+	// (PATCH /delay/{delay})
+	DelayPatch(w http.ResponseWriter, r *http.Request, delay Delay)
+
+	// (POST /delay/{delay})
+	DelayPost(w http.ResponseWriter, r *http.Request, delay Delay)
+
+	// (PUT /delay/{delay})
+	DelayPut(w http.ResponseWriter, r *http.Request, delay Delay)
+
+	// (TRACE /delay/{delay})
+	DelayTrace(w http.ResponseWriter, r *http.Request, delay Delay)
 
 	// (DELETE /delete)
 	DeleteEcho(w http.ResponseWriter, r *http.Request)
 
 	// (GET /deny)
 	Deny(w http.ResponseWriter, r *http.Request)
+
+	// (GET /digest-auth/{qop}/{user}/{password})
+	DigestAuth(w http.ResponseWriter, r *http.Request, qop QOP, user User, password Password)
+
+	// (GET /digest-auth/{qop}/{user}/{password}/{algorithm})
+	DigestAuthAlgorithm(w http.ResponseWriter, r *http.Request, qop QOP, user User, password Password, algorithm Algorithm)
+
+	// (GET /digest-auth/{qop}/{user}/{password}/{algorithm}/{stale_after})
+	DigestAuthAlgorithmStale(w http.ResponseWriter, r *http.Request, qop QOP, user User, password Password, algorithm Algorithm, staleAfter StaleAfter)
 
 	// (GET /docs)
 	Docs(w http.ResponseWriter, r *http.Request)
@@ -170,6 +215,9 @@ type ServerInterface interface {
 	// (GET /image/svg)
 	ImageSVG(w http.ResponseWriter, r *http.Request)
 
+	// (GET /image/webp)
+	ImageWEBP(w http.ResponseWriter, r *http.Request)
+
 	// (GET /ip)
 	IP(w http.ResponseWriter, r *http.Request)
 
@@ -191,11 +239,29 @@ type ServerInterface interface {
 	// (PUT /put)
 	PutEcho(w http.ResponseWriter, r *http.Request)
 
+	// (GET /range/{numbytes})
+	Range(w http.ResponseWriter, r *http.Request, numbytes NumBytes)
+
 	// (GET /readyz)
 	Readyz(w http.ResponseWriter, r *http.Request)
 
+	// (DELETE /redirect-to)
+	RedirectToDelete(w http.ResponseWriter, r *http.Request)
+
 	// (GET /redirect-to)
 	RedirectTo(w http.ResponseWriter, r *http.Request)
+
+	// (PATCH /redirect-to)
+	RedirectToPatch(w http.ResponseWriter, r *http.Request)
+
+	// (POST /redirect-to)
+	RedirectToPost(w http.ResponseWriter, r *http.Request)
+
+	// (PUT /redirect-to)
+	RedirectToPut(w http.ResponseWriter, r *http.Request)
+
+	// (TRACE /redirect-to)
+	RedirectToTrace(w http.ResponseWriter, r *http.Request)
 
 	// (GET /redirect/{n})
 	Redirect(w http.ResponseWriter, r *http.Request, n N)
@@ -218,11 +284,17 @@ type ServerInterface interface {
 	// (GET /status/{codes})
 	StatusGet(w http.ResponseWriter, r *http.Request, codes Codes)
 
+	// (PATCH /status/{codes})
+	StatusPatch(w http.ResponseWriter, r *http.Request, codes Codes)
+
 	// (POST /status/{codes})
 	StatusPost(w http.ResponseWriter, r *http.Request, codes Codes)
 
 	// (PUT /status/{codes})
 	StatusPut(w http.ResponseWriter, r *http.Request, codes Codes)
+
+	// (TRACE /status/{codes})
+	StatusTrace(w http.ResponseWriter, r *http.Request, codes Codes)
 
 	// (GET /stream-bytes/{n})
 	StreamBytes(w http.ResponseWriter, r *http.Request, n N)
@@ -279,6 +351,11 @@ func (_ Unimplemented) AnythingPut(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (TRACE /anything)
+func (_ Unimplemented) AnythingTrace(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (DELETE /anything/{path})
 func (_ Unimplemented) AnythingPathDelete(w http.ResponseWriter, r *http.Request, path Path) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -304,6 +381,11 @@ func (_ Unimplemented) AnythingPathPut(w http.ResponseWriter, r *http.Request, p
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (TRACE /anything/{path})
+func (_ Unimplemented) AnythingPathTrace(w http.ResponseWriter, r *http.Request, path Path) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (GET /base64/{value})
 func (_ Unimplemented) Base64Decode(w http.ResponseWriter, r *http.Request, value Value) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -316,6 +398,11 @@ func (_ Unimplemented) BasicAuth(w http.ResponseWriter, r *http.Request, user Us
 
 // (GET /bearer)
 func (_ Unimplemented) Bearer(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /brotli)
+func (_ Unimplemented) Brotli(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -359,8 +446,33 @@ func (_ Unimplemented) Deflate(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (DELETE /delay/{delay})
+func (_ Unimplemented) DelayDelete(w http.ResponseWriter, r *http.Request, delay Delay) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (GET /delay/{delay})
 func (_ Unimplemented) Delay(w http.ResponseWriter, r *http.Request, delay Delay) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (PATCH /delay/{delay})
+func (_ Unimplemented) DelayPatch(w http.ResponseWriter, r *http.Request, delay Delay) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /delay/{delay})
+func (_ Unimplemented) DelayPost(w http.ResponseWriter, r *http.Request, delay Delay) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (PUT /delay/{delay})
+func (_ Unimplemented) DelayPut(w http.ResponseWriter, r *http.Request, delay Delay) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (TRACE /delay/{delay})
+func (_ Unimplemented) DelayTrace(w http.ResponseWriter, r *http.Request, delay Delay) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -371,6 +483,21 @@ func (_ Unimplemented) DeleteEcho(w http.ResponseWriter, r *http.Request) {
 
 // (GET /deny)
 func (_ Unimplemented) Deny(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /digest-auth/{qop}/{user}/{password})
+func (_ Unimplemented) DigestAuth(w http.ResponseWriter, r *http.Request, qop QOP, user User, password Password) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /digest-auth/{qop}/{user}/{password}/{algorithm})
+func (_ Unimplemented) DigestAuthAlgorithm(w http.ResponseWriter, r *http.Request, qop QOP, user User, password Password, algorithm Algorithm) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (GET /digest-auth/{qop}/{user}/{password}/{algorithm}/{stale_after})
+func (_ Unimplemented) DigestAuthAlgorithmStale(w http.ResponseWriter, r *http.Request, qop QOP, user User, password Password, algorithm Algorithm, staleAfter StaleAfter) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -449,6 +576,11 @@ func (_ Unimplemented) ImageSVG(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (GET /image/webp)
+func (_ Unimplemented) ImageWEBP(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (GET /ip)
 func (_ Unimplemented) IP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -484,13 +616,43 @@ func (_ Unimplemented) PutEcho(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (GET /range/{numbytes})
+func (_ Unimplemented) Range(w http.ResponseWriter, r *http.Request, numbytes NumBytes) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (GET /readyz)
 func (_ Unimplemented) Readyz(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (DELETE /redirect-to)
+func (_ Unimplemented) RedirectToDelete(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (GET /redirect-to)
 func (_ Unimplemented) RedirectTo(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (PATCH /redirect-to)
+func (_ Unimplemented) RedirectToPatch(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (POST /redirect-to)
+func (_ Unimplemented) RedirectToPost(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (PUT /redirect-to)
+func (_ Unimplemented) RedirectToPut(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (TRACE /redirect-to)
+func (_ Unimplemented) RedirectToTrace(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -529,6 +691,11 @@ func (_ Unimplemented) StatusGet(w http.ResponseWriter, r *http.Request, codes C
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// (PATCH /status/{codes})
+func (_ Unimplemented) StatusPatch(w http.ResponseWriter, r *http.Request, codes Codes) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // (POST /status/{codes})
 func (_ Unimplemented) StatusPost(w http.ResponseWriter, r *http.Request, codes Codes) {
 	w.WriteHeader(http.StatusNotImplemented)
@@ -536,6 +703,11 @@ func (_ Unimplemented) StatusPost(w http.ResponseWriter, r *http.Request, codes 
 
 // (PUT /status/{codes})
 func (_ Unimplemented) StatusPut(w http.ResponseWriter, r *http.Request, codes Codes) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// (TRACE /status/{codes})
+func (_ Unimplemented) StatusTrace(w http.ResponseWriter, r *http.Request, codes Codes) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -683,6 +855,20 @@ func (siw *ServerInterfaceWrapper) AnythingPut(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// AnythingTrace operation middleware
+func (siw *ServerInterfaceWrapper) AnythingTrace(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AnythingTrace(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // AnythingPathDelete operation middleware
 func (siw *ServerInterfaceWrapper) AnythingPathDelete(w http.ResponseWriter, r *http.Request) {
 
@@ -813,6 +999,32 @@ func (siw *ServerInterfaceWrapper) AnythingPathPut(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// AnythingPathTrace operation middleware
+func (siw *ServerInterfaceWrapper) AnythingPathTrace(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "path" -------------
+	var path Path
+
+	err = runtime.BindStyledParameterWithOptions("simple", "path", chi.URLParam(r, "path"), &path, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "path", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AnythingPathTrace(w, r, path)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // Base64Decode operation middleware
 func (siw *ServerInterfaceWrapper) Base64Decode(w http.ResponseWriter, r *http.Request) {
 
@@ -879,6 +1091,20 @@ func (siw *ServerInterfaceWrapper) Bearer(w http.ResponseWriter, r *http.Request
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Bearer(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Brotli operation middleware
+func (siw *ServerInterfaceWrapper) Brotli(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Brotli(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1045,6 +1271,32 @@ func (siw *ServerInterfaceWrapper) Deflate(w http.ResponseWriter, r *http.Reques
 	handler.ServeHTTP(w, r)
 }
 
+// DelayDelete operation middleware
+func (siw *ServerInterfaceWrapper) DelayDelete(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "delay" -------------
+	var delay Delay
+
+	err = runtime.BindStyledParameterWithOptions("simple", "delay", chi.URLParam(r, "delay"), &delay, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "delay", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DelayDelete(w, r, delay)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // Delay operation middleware
 func (siw *ServerInterfaceWrapper) Delay(w http.ResponseWriter, r *http.Request) {
 
@@ -1062,6 +1314,110 @@ func (siw *ServerInterfaceWrapper) Delay(w http.ResponseWriter, r *http.Request)
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Delay(w, r, delay)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DelayPatch operation middleware
+func (siw *ServerInterfaceWrapper) DelayPatch(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "delay" -------------
+	var delay Delay
+
+	err = runtime.BindStyledParameterWithOptions("simple", "delay", chi.URLParam(r, "delay"), &delay, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "delay", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DelayPatch(w, r, delay)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DelayPost operation middleware
+func (siw *ServerInterfaceWrapper) DelayPost(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "delay" -------------
+	var delay Delay
+
+	err = runtime.BindStyledParameterWithOptions("simple", "delay", chi.URLParam(r, "delay"), &delay, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "delay", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DelayPost(w, r, delay)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DelayPut operation middleware
+func (siw *ServerInterfaceWrapper) DelayPut(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "delay" -------------
+	var delay Delay
+
+	err = runtime.BindStyledParameterWithOptions("simple", "delay", chi.URLParam(r, "delay"), &delay, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "delay", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DelayPut(w, r, delay)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DelayTrace operation middleware
+func (siw *ServerInterfaceWrapper) DelayTrace(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "delay" -------------
+	var delay Delay
+
+	err = runtime.BindStyledParameterWithOptions("simple", "delay", chi.URLParam(r, "delay"), &delay, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "delay", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DelayTrace(w, r, delay)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1090,6 +1446,165 @@ func (siw *ServerInterfaceWrapper) Deny(w http.ResponseWriter, r *http.Request) 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Deny(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DigestAuth operation middleware
+func (siw *ServerInterfaceWrapper) DigestAuth(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "qop" -------------
+	var qop QOP
+
+	err = runtime.BindStyledParameterWithOptions("simple", "qop", chi.URLParam(r, "qop"), &qop, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "qop", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "user" -------------
+	var user User
+
+	err = runtime.BindStyledParameterWithOptions("simple", "user", chi.URLParam(r, "user"), &user, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "password" -------------
+	var password Password
+
+	err = runtime.BindStyledParameterWithOptions("simple", "password", chi.URLParam(r, "password"), &password, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "password", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DigestAuth(w, r, qop, user, password)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DigestAuthAlgorithm operation middleware
+func (siw *ServerInterfaceWrapper) DigestAuthAlgorithm(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "qop" -------------
+	var qop QOP
+
+	err = runtime.BindStyledParameterWithOptions("simple", "qop", chi.URLParam(r, "qop"), &qop, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "qop", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "user" -------------
+	var user User
+
+	err = runtime.BindStyledParameterWithOptions("simple", "user", chi.URLParam(r, "user"), &user, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "password" -------------
+	var password Password
+
+	err = runtime.BindStyledParameterWithOptions("simple", "password", chi.URLParam(r, "password"), &password, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "password", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "algorithm" -------------
+	var algorithm Algorithm
+
+	err = runtime.BindStyledParameterWithOptions("simple", "algorithm", chi.URLParam(r, "algorithm"), &algorithm, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "algorithm", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DigestAuthAlgorithm(w, r, qop, user, password, algorithm)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DigestAuthAlgorithmStale operation middleware
+func (siw *ServerInterfaceWrapper) DigestAuthAlgorithmStale(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "qop" -------------
+	var qop QOP
+
+	err = runtime.BindStyledParameterWithOptions("simple", "qop", chi.URLParam(r, "qop"), &qop, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "qop", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "user" -------------
+	var user User
+
+	err = runtime.BindStyledParameterWithOptions("simple", "user", chi.URLParam(r, "user"), &user, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "user", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "password" -------------
+	var password Password
+
+	err = runtime.BindStyledParameterWithOptions("simple", "password", chi.URLParam(r, "password"), &password, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "password", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "algorithm" -------------
+	var algorithm Algorithm
+
+	err = runtime.BindStyledParameterWithOptions("simple", "algorithm", chi.URLParam(r, "algorithm"), &algorithm, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "algorithm", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "stale_after" -------------
+	var staleAfter StaleAfter
+
+	err = runtime.BindStyledParameterWithOptions("simple", "stale_after", chi.URLParam(r, "stale_after"), &staleAfter, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "stale_after", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DigestAuthAlgorithmStale(w, r, qop, user, password, algorithm, staleAfter)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1342,6 +1857,20 @@ func (siw *ServerInterfaceWrapper) ImageSVG(w http.ResponseWriter, r *http.Reque
 	handler.ServeHTTP(w, r)
 }
 
+// ImageWEBP operation middleware
+func (siw *ServerInterfaceWrapper) ImageWEBP(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ImageWEBP(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // IP operation middleware
 func (siw *ServerInterfaceWrapper) IP(w http.ResponseWriter, r *http.Request) {
 
@@ -1461,6 +1990,32 @@ func (siw *ServerInterfaceWrapper) PutEcho(w http.ResponseWriter, r *http.Reques
 	handler.ServeHTTP(w, r)
 }
 
+// Range operation middleware
+func (siw *ServerInterfaceWrapper) Range(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "numbytes" -------------
+	var numbytes NumBytes
+
+	err = runtime.BindStyledParameterWithOptions("simple", "numbytes", chi.URLParam(r, "numbytes"), &numbytes, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "numbytes", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Range(w, r, numbytes)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // Readyz operation middleware
 func (siw *ServerInterfaceWrapper) Readyz(w http.ResponseWriter, r *http.Request) {
 
@@ -1475,11 +2030,81 @@ func (siw *ServerInterfaceWrapper) Readyz(w http.ResponseWriter, r *http.Request
 	handler.ServeHTTP(w, r)
 }
 
+// RedirectToDelete operation middleware
+func (siw *ServerInterfaceWrapper) RedirectToDelete(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RedirectToDelete(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RedirectTo operation middleware
 func (siw *ServerInterfaceWrapper) RedirectTo(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.RedirectTo(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RedirectToPatch operation middleware
+func (siw *ServerInterfaceWrapper) RedirectToPatch(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RedirectToPatch(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RedirectToPost operation middleware
+func (siw *ServerInterfaceWrapper) RedirectToPost(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RedirectToPost(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RedirectToPut operation middleware
+func (siw *ServerInterfaceWrapper) RedirectToPut(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RedirectToPut(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RedirectToTrace operation middleware
+func (siw *ServerInterfaceWrapper) RedirectToTrace(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RedirectToTrace(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1635,6 +2260,32 @@ func (siw *ServerInterfaceWrapper) StatusGet(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
+// StatusPatch operation middleware
+func (siw *ServerInterfaceWrapper) StatusPatch(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "codes" -------------
+	var codes Codes
+
+	err = runtime.BindStyledParameterWithOptions("simple", "codes", chi.URLParam(r, "codes"), &codes, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "codes", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StatusPatch(w, r, codes)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // StatusPost operation middleware
 func (siw *ServerInterfaceWrapper) StatusPost(w http.ResponseWriter, r *http.Request) {
 
@@ -1678,6 +2329,32 @@ func (siw *ServerInterfaceWrapper) StatusPut(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.StatusPut(w, r, codes)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StatusTrace operation middleware
+func (siw *ServerInterfaceWrapper) StatusTrace(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "codes" -------------
+	var codes Codes
+
+	err = runtime.BindStyledParameterWithOptions("simple", "codes", chi.URLParam(r, "codes"), &codes, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "codes", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StatusTrace(w, r, codes)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1916,6 +2593,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Put(options.BaseURL+"/anything", wrapper.AnythingPut)
 	})
 	r.Group(func(r chi.Router) {
+		r.Trace(options.BaseURL+"/anything", wrapper.AnythingTrace)
+	})
+	r.Group(func(r chi.Router) {
 		r.Delete(options.BaseURL+"/anything/{path}", wrapper.AnythingPathDelete)
 	})
 	r.Group(func(r chi.Router) {
@@ -1931,6 +2611,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Put(options.BaseURL+"/anything/{path}", wrapper.AnythingPathPut)
 	})
 	r.Group(func(r chi.Router) {
+		r.Trace(options.BaseURL+"/anything/{path}", wrapper.AnythingPathTrace)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/base64/{value}", wrapper.Base64Decode)
 	})
 	r.Group(func(r chi.Router) {
@@ -1938,6 +2621,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/bearer", wrapper.Bearer)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/brotli", wrapper.Brotli)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/bytes/{n}", wrapper.Bytes)
@@ -1964,13 +2650,37 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/deflate", wrapper.Deflate)
 	})
 	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/delay/{delay}", wrapper.DelayDelete)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/delay/{delay}", wrapper.Delay)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/delay/{delay}", wrapper.DelayPatch)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/delay/{delay}", wrapper.DelayPost)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/delay/{delay}", wrapper.DelayPut)
+	})
+	r.Group(func(r chi.Router) {
+		r.Trace(options.BaseURL+"/delay/{delay}", wrapper.DelayTrace)
 	})
 	r.Group(func(r chi.Router) {
 		r.Delete(options.BaseURL+"/delete", wrapper.DeleteEcho)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/deny", wrapper.Deny)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/digest-auth/{qop}/{user}/{password}", wrapper.DigestAuth)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/digest-auth/{qop}/{user}/{password}/{algorithm}", wrapper.DigestAuthAlgorithm)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/digest-auth/{qop}/{user}/{password}/{algorithm}/{stale_after}", wrapper.DigestAuthAlgorithmStale)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/docs", wrapper.Docs)
@@ -2018,6 +2728,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/image/svg", wrapper.ImageSVG)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/image/webp", wrapper.ImageWEBP)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/ip", wrapper.IP)
 	})
 	r.Group(func(r chi.Router) {
@@ -2039,10 +2752,28 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Put(options.BaseURL+"/put", wrapper.PutEcho)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/range/{numbytes}", wrapper.Range)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/readyz", wrapper.Readyz)
 	})
 	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/redirect-to", wrapper.RedirectToDelete)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/redirect-to", wrapper.RedirectTo)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/redirect-to", wrapper.RedirectToPatch)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/redirect-to", wrapper.RedirectToPost)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/redirect-to", wrapper.RedirectToPut)
+	})
+	r.Group(func(r chi.Router) {
+		r.Trace(options.BaseURL+"/redirect-to", wrapper.RedirectToTrace)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/redirect/{n}", wrapper.Redirect)
@@ -2066,10 +2797,16 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/status/{codes}", wrapper.StatusGet)
 	})
 	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/status/{codes}", wrapper.StatusPatch)
+	})
+	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/status/{codes}", wrapper.StatusPost)
 	})
 	r.Group(func(r chi.Router) {
 		r.Put(options.BaseURL+"/status/{codes}", wrapper.StatusPut)
+	})
+	r.Group(func(r chi.Router) {
+		r.Trace(options.BaseURL+"/status/{codes}", wrapper.StatusTrace)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/stream-bytes/{n}", wrapper.StreamBytes)

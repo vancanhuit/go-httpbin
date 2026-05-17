@@ -4,7 +4,11 @@ import (
 	"bytes"
 	"compress/gzip"
 	"compress/zlib"
+	"crypto/md5"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"mime/multipart"
@@ -14,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/andybalholm/brotli"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/vancanhuit/go-httpbin/internal/config"
 )
@@ -325,6 +330,53 @@ func TestAuthEndpoints(t *testing.T) {
 	})
 }
 
+func TestDigestAuthEndpoints(t *testing.T) {
+	t.Run("md5 auth", func(t *testing.T) {
+		challenge := digestChallenge(t, "/digest-auth/auth/user/pass")
+		auth := digestAuthorization(t, challenge, http.MethodGet, "/digest-auth/auth/user/pass", "user", "pass", nil)
+
+		rec := request(t, http.MethodGet, "/digest-auth/auth/user/pass", nil, map[string]string{
+			"Authorization": auth,
+		})
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body.String())
+		}
+		var body map[string]any
+		decodeJSON(t, rec, &body)
+		if body["authenticated"] != true || body["user"] != "user" {
+			t.Fatalf("body = %#v", body)
+		}
+	})
+
+	t.Run("sha256 auth-int", func(t *testing.T) {
+		target := "/digest-auth/auth-int/user/pass/SHA-256"
+		challenge := digestChallenge(t, target)
+		auth := digestAuthorization(t, challenge, http.MethodGet, target, "user", "pass", nil)
+
+		rec := request(t, http.MethodGet, target, nil, map[string]string{
+			"Authorization": auth,
+		})
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200: %s", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("wrong credentials", func(t *testing.T) {
+		challenge := digestChallenge(t, "/digest-auth/auth/user/pass")
+		auth := digestAuthorization(t, challenge, http.MethodGet, "/digest-auth/auth/user/pass", "user", "wrong", nil)
+
+		rec := request(t, http.MethodGet, "/digest-auth/auth/user/pass", nil, map[string]string{
+			"Authorization": auth,
+		})
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("status = %d, want 401", rec.Code)
+		}
+		if got := rec.Header().Get("WWW-Authenticate"); !strings.Contains(got, "Digest ") {
+			t.Fatalf("WWW-Authenticate = %q, want Digest challenge", got)
+		}
+	})
+}
+
 func TestDynamicEndpoints(t *testing.T) {
 	t.Run("uuid", func(t *testing.T) {
 		rec := request(t, http.MethodGet, "/uuid", nil, nil)
@@ -368,6 +420,54 @@ func TestDynamicEndpoints(t *testing.T) {
 		rec := request(t, http.MethodGet, "/base64/aGVsbG8=", nil, nil)
 		if rec.Code != http.StatusOK || rec.Body.String() != "hello" {
 			t.Fatalf("status/body = %d/%q", rec.Code, rec.Body.String())
+		}
+	})
+}
+
+func TestRangeEndpoint(t *testing.T) {
+	t.Run("full response", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/range/10", nil, nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+		if rec.Body.String() != "abcdefghij" {
+			t.Fatalf("body = %q, want alphabet range", rec.Body.String())
+		}
+		if got := rec.Header().Get("Accept-Ranges"); got != "bytes" {
+			t.Fatalf("Accept-Ranges = %q, want bytes", got)
+		}
+		if got := rec.Header().Get("Content-Range"); got != "bytes 0-9/10" {
+			t.Fatalf("Content-Range = %q, want bytes 0-9/10", got)
+		}
+		if got := rec.Header().Get("ETag"); got != "range10" {
+			t.Fatalf("ETag = %q, want range10", got)
+		}
+	})
+
+	t.Run("partial response", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/range/10", nil, map[string]string{
+			"Range": "bytes=2-5",
+		})
+		if rec.Code != http.StatusPartialContent {
+			t.Fatalf("status = %d, want 206", rec.Code)
+		}
+		if rec.Body.String() != "cdef" {
+			t.Fatalf("body = %q, want cdef", rec.Body.String())
+		}
+		if got := rec.Header().Get("Content-Range"); got != "bytes 2-5/10" {
+			t.Fatalf("Content-Range = %q, want bytes 2-5/10", got)
+		}
+	})
+
+	t.Run("invalid range", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/range/10", nil, map[string]string{
+			"Range": "bytes=10-20",
+		})
+		if rec.Code != http.StatusRequestedRangeNotSatisfiable {
+			t.Fatalf("status = %d, want 416", rec.Code)
+		}
+		if got := rec.Header().Get("Content-Range"); got != "bytes */10" {
+			t.Fatalf("Content-Range = %q, want bytes */10", got)
 		}
 	})
 }
@@ -457,6 +557,20 @@ func TestEncodedAndFormatEndpoints(t *testing.T) {
 		}
 	})
 
+	t.Run("brotli", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/brotli", nil, nil)
+		if rec.Header().Get("Content-Encoding") != "br" {
+			t.Fatalf("Content-Encoding = %q, want br", rec.Header().Get("Content-Encoding"))
+		}
+		var body map[string]any
+		if err := json.NewDecoder(brotli.NewReader(rec.Body)).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		if body["brotli"] != true {
+			t.Fatalf("brotli = %v", body["brotli"])
+		}
+	})
+
 	t.Run("json", func(t *testing.T) {
 		rec := request(t, http.MethodGet, "/json", nil, nil)
 		var body map[string]any
@@ -470,6 +584,69 @@ func TestEncodedAndFormatEndpoints(t *testing.T) {
 		rec := request(t, http.MethodGet, "/image/png", nil, nil)
 		if rec.Code != http.StatusOK || rec.Header().Get("Content-Type") != "image/png" || rec.Body.Len() == 0 {
 			t.Fatalf("unexpected image response: status=%d content-type=%q len=%d", rec.Code, rec.Header().Get("Content-Type"), rec.Body.Len())
+		}
+	})
+
+	t.Run("webp", func(t *testing.T) {
+		rec := request(t, http.MethodGet, "/image/webp", nil, nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+		if rec.Header().Get("Content-Type") != "image/webp" {
+			t.Fatalf("Content-Type = %q, want image/webp", rec.Header().Get("Content-Type"))
+		}
+		body := rec.Body.Bytes()
+		if len(body) < 12 || string(body[:4]) != "RIFF" || string(body[8:12]) != "WEBP" {
+			t.Fatalf("body does not look like WebP: len=%d", len(body))
+		}
+	})
+}
+
+func TestCompatibilityMethods(t *testing.T) {
+	t.Run("status patch and trace", func(t *testing.T) {
+		for _, method := range []string{http.MethodPatch, http.MethodTrace} {
+			rec := request(t, method, "/status/204", nil, nil)
+			if rec.Code != http.StatusNoContent {
+				t.Fatalf("%s status = %d, want 204", method, rec.Code)
+			}
+		}
+	})
+
+	t.Run("delay post echoes body", func(t *testing.T) {
+		rec := request(t, http.MethodPost, "/delay/0", strings.NewReader("hello"), map[string]string{
+			"Content-Type": "text/plain",
+		})
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+		var body map[string]any
+		decodeJSON(t, rec, &body)
+		if body["data"] != "hello" {
+			t.Fatalf("data = %v, want hello", body["data"])
+		}
+	})
+
+	t.Run("redirect-to supports mutation methods", func(t *testing.T) {
+		for _, method := range []string{http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodTrace} {
+			rec := request(t, method, "/redirect-to?url=/get&status_code=307", nil, nil)
+			if rec.Code != http.StatusTemporaryRedirect {
+				t.Fatalf("%s status = %d, want 307", method, rec.Code)
+			}
+			if rec.Header().Get("Location") != "/get" {
+				t.Fatalf("%s Location = %q, want /get", method, rec.Header().Get("Location"))
+			}
+		}
+	})
+
+	t.Run("anything trace", func(t *testing.T) {
+		rec := request(t, http.MethodTrace, "/anything/a/b?x=1", nil, nil)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+		var body map[string]any
+		decodeJSON(t, rec, &body)
+		if body["method"] != http.MethodTrace {
+			t.Fatalf("method = %v, want TRACE", body["method"])
 		}
 	})
 }
@@ -523,4 +700,98 @@ func decodeJSON(t *testing.T, rec *httptest.ResponseRecorder, value any) {
 	if err := json.Unmarshal(rec.Body.Bytes(), value); err != nil {
 		t.Fatalf("decode JSON: %v; body=%q", err, rec.Body.String())
 	}
+}
+
+func digestChallenge(t *testing.T, target string) map[string]string {
+	t.Helper()
+	rec := request(t, http.MethodGet, target, nil, nil)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("initial digest status = %d, want 401", rec.Code)
+	}
+	challenge := parseAuthParams(strings.TrimPrefix(rec.Header().Get("WWW-Authenticate"), "Digest "))
+	if challenge["realm"] == "" || challenge["nonce"] == "" || challenge["qop"] == "" || challenge["algorithm"] == "" {
+		t.Fatalf("incomplete digest challenge: %#v", challenge)
+	}
+	return challenge
+}
+
+func digestAuthorization(t *testing.T, challenge map[string]string, method, target, user, password string, body []byte) string {
+	t.Helper()
+	algorithm := challenge["algorithm"]
+	qop := challenge["qop"]
+	uri := target
+	nc := "00000001"
+	cnonce := "test-cnonce"
+
+	ha1 := testDigestHex(t, algorithm, fmt.Sprintf("%s:%s:%s", user, challenge["realm"], password))
+	ha2Input := method + ":" + uri
+	if qop == "auth-int" {
+		ha2Input += ":" + testDigestHex(t, algorithm, string(body))
+	}
+	ha2 := testDigestHex(t, algorithm, ha2Input)
+	response := testDigestHex(t, algorithm, fmt.Sprintf("%s:%s:%s:%s:%s:%s", ha1, challenge["nonce"], nc, cnonce, qop, ha2))
+
+	return fmt.Sprintf(
+		`Digest username="%s", realm="%s", nonce="%s", uri="%s", algorithm=%s, response="%s", opaque="%s", qop=%s, nc=%s, cnonce="%s"`,
+		user,
+		challenge["realm"],
+		challenge["nonce"],
+		uri,
+		algorithm,
+		response,
+		challenge["opaque"],
+		qop,
+		nc,
+		cnonce,
+	)
+}
+
+func testDigestHex(t *testing.T, algorithm, value string) string {
+	t.Helper()
+	switch strings.ToUpper(algorithm) {
+	case "MD5":
+		sum := md5.Sum([]byte(value))
+		return hex.EncodeToString(sum[:])
+	case "SHA-256":
+		sum := sha256.Sum256([]byte(value))
+		return hex.EncodeToString(sum[:])
+	default:
+		t.Fatalf("unsupported test digest algorithm %q", algorithm)
+		return ""
+	}
+}
+
+func parseAuthParams(value string) map[string]string {
+	params := map[string]string{}
+	for _, part := range splitAuthParams(value) {
+		key, val, ok := strings.Cut(strings.TrimSpace(part), "=")
+		if !ok {
+			continue
+		}
+		params[key] = strings.Trim(strings.TrimSpace(val), `"`)
+	}
+	return params
+}
+
+func splitAuthParams(value string) []string {
+	var parts []string
+	var b strings.Builder
+	inQuotes := false
+	for _, r := range value {
+		switch r {
+		case '"':
+			inQuotes = !inQuotes
+		case ',':
+			if !inQuotes {
+				parts = append(parts, b.String())
+				b.Reset()
+				continue
+			}
+		}
+		b.WriteRune(r)
+	}
+	if b.Len() > 0 {
+		parts = append(parts, b.String())
+	}
+	return parts
 }
