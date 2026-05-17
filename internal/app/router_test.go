@@ -673,6 +673,9 @@ func TestSlogRequestLoggerWritesJSON(t *testing.T) {
 	if entry["method"] != http.MethodPost || entry["path"] != "/log-test" || entry["query"] != "x=1" {
 		t.Fatalf("unexpected request fields: %#v", entry)
 	}
+	if entry["proto"] != "HTTP/1.1" {
+		t.Fatalf("proto = %v, want HTTP/1.1", entry["proto"])
+	}
 	if entry["status"] != float64(http.StatusCreated) {
 		t.Fatalf("status = %v, want 201", entry["status"])
 	}
@@ -681,6 +684,14 @@ func TestSlogRequestLoggerWritesJSON(t *testing.T) {
 	}
 	if entry["request_id"] == "" {
 		t.Fatalf("missing request_id: %#v", entry)
+	}
+	durationText, ok := entry["duration"].(string)
+	if !ok {
+		t.Fatalf("duration = %#v, want Chi-style duration string", entry["duration"])
+	}
+	duration, err := time.ParseDuration(durationText)
+	if err != nil || duration <= 0 {
+		t.Fatalf("duration = %q, want positive Go duration string", durationText)
 	}
 }
 
