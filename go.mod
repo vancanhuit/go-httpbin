@@ -5,10 +5,10 @@ go 1.26.3
 tool github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen
 
 require (
-	github.com/andybalholm/brotli v1.2.1
+	github.com/andybalholm/brotli v1.2.2
 	github.com/caarlos0/env/v11 v11.4.1
-	github.com/go-chi/chi/v5 v5.2.5
-	github.com/oapi-codegen/runtime v1.4.0
+	github.com/go-chi/chi/v5 v5.3.0
+	github.com/oapi-codegen/runtime v1.4.2
 )
 
 require (
